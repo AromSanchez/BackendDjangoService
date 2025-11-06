@@ -28,6 +28,14 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
+# ============================================
+# JWT CONFIGURATION - Spring Boot Integration
+# ============================================
+# Estas claves deben ser EXACTAMENTE las mismas que en Spring Boot
+JWT_SECRET_KEY = "mi_clave_super_secreta_para_jwt_1234567890"
+JWT_REFRESH_SECRET_KEY = "mi_clave_diferente_para_refresh_token_0987654321"
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -46,6 +54,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'conectaya.authentication.middleware.JWTAuthenticationMiddleware',  # JWT Middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -85,6 +94,15 @@ DATABASES = {
 }
 
 
+# ============================================
+# AUTHENTICATION BACKENDS
+# ============================================
+AUTHENTICATION_BACKENDS = [
+    'conectaya.authentication.backends.JWTAuthenticationBackend',  # JWT Backend
+    'django.contrib.auth.backends.ModelBackend',  # Backend por defecto
+]
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -102,6 +120,16 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# ============================================
+# REST FRAMEWORK CONFIGURATION
+# ============================================
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': [],
+    'UNAUTHENTICATED_USER': None,
+}
 
 
 # Internationalization
