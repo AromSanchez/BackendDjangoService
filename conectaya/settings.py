@@ -15,6 +15,12 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ============================================
+# PyMySQL Configuration (alternativa a mysqlclient)
+# ============================================
+import pymysql
+pymysql.install_as_MySQLdb()
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -46,12 +52,27 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'dashboard',  # App del dashboard
+    'django_filters',
+    'corsheaders',
+    'drf_spectacular',
+    'channels',
+    
+    # Apps del proyecto
+    'dashboard',
+    'apps.shared',
+    'apps.users',
+    'apps.services',
+    'apps.bookings',
+    'apps.reviews',
+    'apps.favorites',
+    'apps.reports',
+    'apps.chat',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -130,6 +151,54 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [],
     'DEFAULT_PERMISSION_CLASSES': [],
     'UNAUTHENTICATED_USER': None,
+    'DEFAULT_PAGINATION_CLASS': 'apps.shared.pagination.StandardPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.OrderingFilter',
+        'rest_framework.filters.SearchFilter',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# ============================================
+# DRF SPECTACULAR (API DOCS)
+# ============================================
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Marketplace API',
+    'DESCRIPTION': 'API para marketplace de servicios',
+    'VERSION': '1.0.0',
+}
+
+# ============================================
+# CORS CONFIGURATION
+# ============================================
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:4200",
+    "http://localhost:8080",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# ============================================
+# SPRING BOOT INTEGRATION
+# ============================================
+SPRINGBOOT_API_URL = 'http://localhost:8080/api'
+INTERNAL_API_SECRET = 'change-this-secret-key'
+
+# ============================================
+# DJANGO CHANNELS (WebSockets)
+# ============================================
+ASGI_APPLICATION = 'conectaya.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
 }
 
 
