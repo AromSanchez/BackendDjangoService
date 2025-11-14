@@ -23,6 +23,15 @@ urlpatterns = [
     # API de autenticación (ejemplos JWT)
     path('api/auth/', include('conectaya.authentication.urls')),
     
-    # API del dashboard (protegido)
+    # API del dashboard principal (protegido)
     path('api/dashboard/', include('dashboard.urls')),
+    
+    # APIs de las apps del marketplace
+    path('api/dashboard/services/', include('apps.services.urls')),
+    path('api/dashboard/bookings/', include('apps.bookings.urls')),
+    path('api/dashboard/reviews/', include('apps.reviews.urls')),
+    path('api/dashboard/favorites/', include('apps.favorites.urls')),
+    path('api/dashboard/reports/', include('apps.reports.urls')),
+    path('api/dashboard/chat/', include('apps.chat.urls')),
+    path('api/dashboard/users/', include('apps.users.urls')),
 ]
