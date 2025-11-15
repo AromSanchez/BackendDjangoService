@@ -26,6 +26,21 @@ class User(models.Model):
     
     def __str__(self):
         return f"{self.full_name} ({self.email})"
+    
+    @property
+    def is_customer(self):
+        """Verifica si el usuario es cliente"""
+        return self.role == 'CUSTOMER'
+    
+    @property
+    def is_provider(self):
+        """Verifica si el usuario es proveedor"""
+        return self.role == 'PROVIDER'
+    
+    @property
+    def is_admin(self):
+        """Verifica si el usuario es administrador"""
+        return self.role == 'ADMIN'
 
 
 class UserProfile(models.Model):

@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from conectaya.authentication.decorators import jwt_required_drf
-from .models import User
+from apps.users.models import User
 from .services import DashboardService
 from .serializers import DashboardDataSerializer
 

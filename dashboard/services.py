@@ -2,7 +2,14 @@
 Services para el módulo Dashboard
 Contiene la lógica de negocio para generar datos según el rol
 """
-from .models import User
+from apps.users.models import User
+from apps.services.models import Service
+from apps.bookings.models import Booking
+from apps.reviews.models import Review
+from apps.favorites.models import Favorite
+from django.db.models import Count, Avg, Sum, Q
+from django.utils import timezone
+from datetime import timedelta
 
 
 class DashboardService:
@@ -13,7 +20,7 @@ class DashboardService:
     @staticmethod
     def get_customer_data(user):
         """
-        Genera datos del dashboard para un CUSTOMER
+        Genera datos del dashboard para un CUSTOMER (versión simplificada)
         
         Args:
             user: Instancia del modelo User
@@ -21,27 +28,16 @@ class DashboardService:
         Returns:
             dict: Datos específicos para clientes
         """
+        # Datos básicos sin consultas complejas por ahora
         return {
-            "productos_destacados": [
-                {
-                    "id": 1,
-                    "nombre": "Servicio de Limpieza",
-                    "precio": 50.00,
-                    "categoria": "Hogar"
-                },
-                {
-                    "id": 2,
-                    "nombre": "Reparación de PC",
-                    "precio": 80.00,
-                    "categoria": "Tecnología"
-                },
-                {
-                    "id": 3,
-                    "nombre": "Plomería Express",
-                    "precio": 60.00,
-                    "categoria": "Hogar"
-                }
-            ],
+            "estadisticas": {
+                'total_bookings': 0,
+                'pending_bookings': 0,
+                'completed_bookings': 0,
+                'total_spent': 0
+            },
+            "serviciosDestacados": [],
+            "misSolicitudes": [],
             "ofertas_especiales": [
                 {
                     "id": 1,
@@ -78,7 +74,7 @@ class DashboardService:
     @staticmethod
     def get_provider_data(user):
         """
-        Genera datos del dashboard para un PROVIDER
+        Genera datos del dashboard para un PROVIDER (versión simplificada)
         
         Args:
             user: Instancia del modelo User
@@ -86,68 +82,27 @@ class DashboardService:
         Returns:
             dict: Datos específicos para proveedores
         """
+        # Datos básicos sin consultas complejas por ahora
         return {
-            "mis_servicios": [
-                {
-                    "id": 1,
-                    "nombre": "Limpieza Profesional",
-                    "precio": 50.00,
-                    "activo": True,
-                    "calificacion": 4.8,
-                    "total_ventas": 45
-                },
-                {
-                    "id": 2,
-                    "nombre": "Mantenimiento de Jardines",
-                    "precio": 70.00,
-                    "activo": True,
-                    "calificacion": 4.9,
-                    "total_ventas": 32
-                }
-            ],
-            "pedidos_pendientes": [
-                {
-                    "id": 201,
-                    "cliente": "Juan Pérez",
-                    "servicio": "Limpieza Profesional",
-                    "fecha_solicitud": "2024-11-05",
-                    "estado": "Pendiente",
-                    "monto": 50.00
-                },
-                {
-                    "id": 202,
-                    "cliente": "María García",
-                    "servicio": "Mantenimiento de Jardines",
-                    "fecha_solicitud": "2024-11-06",
-                    "estado": "En proceso",
-                    "monto": 70.00
-                }
-            ],
-            "ingresos_mensuales": {
-                "mes_actual": 1250.00,
-                "mes_anterior": 980.00,
-                "crecimiento": "+27.5%"
-            },
             "estadisticas": {
-                "servicios_activos": 2,
-                "pedidos_completados": 77,
-                "pedidos_pendientes": 2,
-                "calificacion_promedio": 4.85,
-                "ingresos_totales": 5430.00
+                'active_services': 0,
+                'pending_bookings': 0,
+                'completed_bookings': 0,
+                'total_revenue': 0
             },
-            "notificaciones": [
-                {
-                    "tipo": "nuevo_pedido",
-                    "mensaje": "Tienes 2 nuevos pedidos pendientes",
-                    "fecha": "2024-11-06"
-                }
-            ]
+            "ingresos_mensuales": {
+                'current_month': 0,
+                'previous_month': 0,
+                'growth': "0%"
+            },
+            "misServicios": [],
+            "solicitudesPendientes": []
         }
     
     @staticmethod
     def get_admin_data(user):
         """
-        Genera datos del dashboard para un ADMIN
+        Genera datos del dashboard para un ADMIN (versión simplificada)
         
         Args:
             user: Instancia del modelo User
@@ -155,68 +110,24 @@ class DashboardService:
         Returns:
             dict: Datos específicos para administradores
         """
+        # Datos básicos sin consultas complejas por ahora
         return {
             "usuarios": {
-                "total": 1250,
-                "clientes": 980,
-                "proveedores": 245,
-                "admins": 25,
-                "nuevos_hoy": 15,
-                "activos": 1180
+                "total": 0,
+                "customers": 0,
+                "providers": 0,
+                "admins": 0
             },
             "servicios": {
-                "total": 450,
-                "activos": 398,
-                "pendientes_aprobacion": 12,
-                "categorias": [
-                    {"nombre": "Hogar", "cantidad": 180},
-                    {"nombre": "Tecnología", "cantidad": 95},
-                    {"nombre": "Construcción", "cantidad": 75},
-                    {"nombre": "Educación", "cantidad": 60},
-                    {"nombre": "Otros", "cantidad": 40}
-                ]
+                "total": 0,
+                "active": 0,
+                "pending": 0
             },
             "transacciones": {
-                "total_mes": 45680.00,
-                "total_dia": 1250.00,
-                "pendientes": 15,
-                "completadas_hoy": 45
+                "total_revenue": 0,
+                "completed_bookings": 0
             },
-            "reportes": {
-                "ingresos_mensuales": [
-                    {"mes": "Enero", "monto": 35000},
-                    {"mes": "Febrero", "monto": 38000},
-                    {"mes": "Marzo", "monto": 42000},
-                    {"mes": "Abril", "monto": 45000},
-                    {"mes": "Mayo", "monto": 45680}
-                ],
-                "servicios_mas_solicitados": [
-                    {"servicio": "Limpieza", "cantidad": 450},
-                    {"servicio": "Plomería", "cantidad": 320},
-                    {"servicio": "Electricidad", "cantidad": 280}
-                ]
-            },
-            "alertas": [
-                {
-                    "tipo": "warning",
-                    "mensaje": "12 servicios pendientes de aprobación",
-                    "prioridad": "media"
-                },
-                {
-                    "tipo": "info",
-                    "mensaje": "15 nuevos usuarios registrados hoy",
-                    "prioridad": "baja"
-                }
-            ],
-            "proveedores_pendientes_verificacion": [
-                {
-                    "id": 301,
-                    "nombre": "Carlos Rodríguez",
-                    "email": "carlos@example.com",
-                    "fecha_solicitud": "2024-11-05",
-                    "servicios_propuestos": 3
-                }
-            ]
+            "pending_providers": []
         }
     
     @staticmethod
