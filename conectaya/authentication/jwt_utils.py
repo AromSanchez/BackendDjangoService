@@ -76,7 +76,8 @@ class JWTUtils:
     @staticmethod
     def get_user_id_from_token(token):
         """
-        Extrae el ID del usuario (subject) del access token
+        Extrae el ID del usuario del access token
+        Soporta tanto el formato nuevo (userId en claims) como el legacy (subject)
         
         Args:
             token (str): El token JWT
@@ -87,9 +88,20 @@ class JWTUtils:
         """
         payload = JWTUtils.decode_access_token(token)
         if payload:
-            user_id_str = payload.get('sub')  # 'sub' es donde Spring Boot guarda el ID
-            try:
-                return int(user_id_str)
-            except (ValueError, TypeError):
-                return None
+            # Intentar primero obtener userId de los claims (formato nuevo)
+            user_id = payload.get('userId')
+            if user_id is not None:
+                try:
+                    return int(user_id)
+                except (ValueError, TypeError):
+                    pass
+            
+            # Si no hay userId en claims, usar subject (formato legacy)
+            user_id_str = payload.get('sub')
+            if user_id_str:
+                try:
+                    return int(user_id_str)
+                except (ValueError, TypeError):
+                    pass
+                    
         return None
