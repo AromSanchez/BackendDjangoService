@@ -34,10 +34,10 @@ def services_list_create(request):
             }, status=status.HTTP_200_OK)
         
         elif request.method == 'POST':
-            # Verificar que el usuario sea proveedor
-            if user.role != 'PROVIDER':
+            # Verificar que el usuario sea proveedor o admin
+            if user.role not in ['PROVIDER', 'ADMIN']:
                 return Response(
-                    {'error': 'Solo los proveedores pueden crear servicios'},
+                    {'error': 'Solo los proveedores y administradores pueden crear servicios'},
                     status=status.HTTP_403_FORBIDDEN
                 )
             
@@ -45,14 +45,24 @@ def services_list_create(request):
             data = request.data.copy()
             data['provider_id'] = user_id
             
+            # Debug: Imprimir datos recibidos
+            print(f"📝 Datos recibidos para crear servicio: {data}")
+            print(f"👤 Usuario: {user.full_name} (ID: {user_id}, Rol: {user.role})")
+            
             serializer = ServiceSerializer(data=data)
             if serializer.is_valid():
                 service = serializer.save()
+                print(f"✅ Servicio creado exitosamente: {service.id}")
                 return Response(
                     ServiceSerializer(service).data,
                     status=status.HTTP_201_CREATED
                 )
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                print(f"❌ Errores de validación: {serializer.errors}")
+                return Response({
+                    'error': 'Datos inválidos',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
             
     except Exception as e:
         return Response(

@@ -2,6 +2,7 @@
 Serializers para el módulo de servicios
 """
 from rest_framework import serializers
+from django.db import models
 from .models import Service, Category, ServiceImage
 from apps.users.models import User
 
@@ -27,7 +28,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email', 'phone']
+        fields = ['id', 'full_name', 'email', 'phone_number']
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -38,6 +39,18 @@ class ServiceSerializer(serializers.ModelSerializer):
     images = ServiceImageSerializer(many=True, read_only=True)
     average_rating = serializers.DecimalField(source='rating_avg', max_digits=3, decimal_places=2, read_only=True)
     
+    # Campos adicionales del frontend (opcionales)
+    location = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    duration_hours = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    requirements = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    terms_conditions = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    image_file_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_empty=True
+    )
+    
     class Meta:
         model = Service
         fields = [
@@ -45,21 +58,98 @@ class ServiceSerializer(serializers.ModelSerializer):
             'title', 'description', 'price', 'location_type',
             'is_published', 'is_active', 'created_at', 'updated_at',
             'reviews_count', 'average_rating', 'favorites_count',
-            'views_count', 'bookings_count', 'images'
+            'views_count', 'bookings_count', 'images',
+            # Campos adicionales del frontend
+            'location', 'duration_hours', 'requirements', 'terms_conditions', 'image_file_ids'
         ]
-        read_only_fields = ['id', 'provider_id', 'created_at', 'updated_at', 
+        read_only_fields = ['id', 'created_at', 'updated_at', 
                            'reviews_count', 'rating_sum', 'rating_avg', 
                            'favorites_count', 'views_count', 'bookings_count']
     
+    def validate_category(self, value):
+        """Validar y convertir categoría"""
+        if isinstance(value, str):
+            # Si es string, buscar por slug o nombre
+            try:
+                category = Category.objects.get(
+                    models.Q(slug__icontains=value.lower()) | 
+                    models.Q(name__icontains=value)
+                )
+                return category
+            except Category.DoesNotExist:
+                # Si no encuentra, usar la primera categoría disponible
+                first_category = Category.objects.first()
+                if first_category:
+                    return first_category
+                raise serializers.ValidationError(f"No se encontró la categoría: {value}")
+        return value
+    
+    def validate_price(self, value):
+        """Validar precio"""
+        if value <= 0:
+            raise serializers.ValidationError("El precio debe ser mayor a 0")
+        return value
+    
     def create(self, validated_data):
         """Crear un nuevo servicio"""
-        return Service.objects.create(**validated_data)
+        # Mapear location a location_type
+        if 'location' in validated_data:
+            validated_data['location_type'] = validated_data.pop('location')
+        
+        # Extraer image_file_ids antes de crear el servicio
+        image_file_ids = validated_data.pop('image_file_ids', [])
+        
+        # Remover campos que no están en el modelo
+        extra_fields = ['duration_hours', 'requirements', 'terms_conditions']
+        for field in extra_fields:
+            validated_data.pop(field, None)
+        
+        # Crear el servicio
+        service = Service.objects.create(**validated_data)
+        
+        # Crear las imágenes del servicio si hay file_ids
+        if image_file_ids:
+            for index, file_id in enumerate(image_file_ids):
+                ServiceImage.objects.create(
+                    service=service,
+                    file_id=file_id,
+                    order=index
+                )
+        
+        return service
     
     def update(self, instance, validated_data):
         """Actualizar un servicio existente"""
+        # Mapear location a location_type
+        if 'location' in validated_data:
+            validated_data['location_type'] = validated_data.pop('location')
+        
+        # Extraer image_file_ids antes de actualizar el servicio
+        image_file_ids = validated_data.pop('image_file_ids', None)
+        
+        # Remover campos que no están en el modelo
+        extra_fields = ['duration_hours', 'requirements', 'terms_conditions']
+        for field in extra_fields:
+            validated_data.pop(field, None)
+        
+        # Actualizar el servicio
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        
+        # Actualizar las imágenes del servicio si se proporcionaron nuevos file_ids
+        if image_file_ids is not None:
+            # Eliminar imágenes existentes
+            instance.images.all().delete()
+            
+            # Crear nuevas imágenes
+            for index, file_id in enumerate(image_file_ids):
+                ServiceImage.objects.create(
+                    service=instance,
+                    file_id=file_id,
+                    order=index
+                )
+        
         return instance
 
 
