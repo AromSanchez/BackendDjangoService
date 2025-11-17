@@ -17,6 +17,9 @@ class User(models.Model):
     phone_verified_at = models.DateTimeField(null=True, blank=True)
     role = models.CharField(max_length=20)  # CUSTOMER, PROVIDER, ADMIN
     is_active = models.BooleanField(default=True)
+    onboarding_status = models.CharField(max_length=20, default='PENDING')
+    pending_role_choice = models.CharField(max_length=20, null=True, blank=True)
+    auth_provider = models.CharField(max_length=20, default='LOCAL')
     provider_status = models.CharField(max_length=20)  # NONE, PENDING, APPROVED, REJECTED
     created_at = models.DateTimeField()
     
