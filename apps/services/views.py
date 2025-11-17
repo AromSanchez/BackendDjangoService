@@ -25,8 +25,36 @@ def services_list_create(request):
         user = get_object_or_404(User, id=user_id)
         
         if request.method == 'GET':
-            # Obtener servicios del proveedor
-            services = Service.objects.filter(provider_id=user_id).order_by('-created_at')
+            # Admin puede ver todos los servicios, proveedores solo los suyos
+            if user.role == 'ADMIN':
+                services = Service.objects.all()
+            else:
+                services = Service.objects.filter(provider_id=user_id)
+
+            # Filtros opcionales
+            category = request.GET.get('category')
+            status_filter = request.GET.get('status')
+            search = request.GET.get('search')
+
+            if category:
+                services = services.filter(category__slug__iexact=category)
+
+            if status_filter:
+                if status_filter.lower() == 'active':
+                    services = services.filter(is_active=True, is_published=True)
+                elif status_filter.lower() == 'pending':
+                    services = services.filter(is_published=False)
+                elif status_filter.lower() == 'inactive':
+                    services = services.filter(is_active=False)
+
+            if search:
+                services = services.filter(
+                    Q(title__icontains=search) |
+                    Q(description__icontains=search) |
+                    Q(provider__full_name__icontains=search)
+                )
+
+            services = services.order_by('-created_at')
             serializer = ServiceSerializer(services, many=True)
             return Response({
                 'services': serializer.data,
@@ -81,14 +109,16 @@ def service_detail(request, service_id):
     """
     try:
         user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
         service = get_object_or_404(Service, id=service_id)
         
-        # Verificar permisos (solo el proveedor puede modificar/eliminar)
-        if request.method in ['PUT', 'DELETE'] and service.provider_id != user_id:
-            return Response(
-                {'error': 'No tienes permisos para modificar este servicio'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Verificar permisos (proveedor dueño o administrador)
+        if request.method in ['PUT', 'DELETE']:
+            if service.provider_id != user_id and user.role != 'ADMIN':
+                return Response(
+                    {'error': 'No tienes permisos para modificar este servicio'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
         
         if request.method == 'GET':
             serializer = ServiceSerializer(service)

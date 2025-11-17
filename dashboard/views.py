@@ -4,6 +4,7 @@ Views para el módulo Dashboard
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import get_object_or_404
 
 from conectaya.authentication.decorators import jwt_required_drf
 from apps.users.models import User
@@ -378,12 +379,15 @@ def admin_stats(request):
         open_reports = Report.objects.filter(status='open').count()
         
         # Ingresos de la plataforma (estimado - comisión del 10%)
-        completed_bookings_qs = Booking.objects.filter(status='completed')
-        total_revenue = sum(booking.service.price for booking in completed_bookings_qs)
+        completed_bookings_qs = Booking.objects.filter(status='completed').select_related('service')
+        total_revenue = sum(
+            booking.service.price for booking in completed_bookings_qs if booking.service
+        )
         platform_revenue = total_revenue * 0.10  # 10% de comisión
-        
+
         # Tendencias de crecimiento (últimos 6 meses)
         months_data = []
+        services_growth = []
         for i in range(6):
             month_start = (datetime.now().replace(day=1) - timedelta(days=30*i))
             month_end = month_start.replace(day=28) + timedelta(days=4)
@@ -398,13 +402,18 @@ def admin_stats(request):
                 created_at__lt=month_end
             ).count()
             
-            month_revenue = sum(
-                booking.service.price for booking in Booking.objects.filter(
+            month_booking_qs = Booking.objects.filter(
                     created_at__gte=month_start,
                     created_at__lt=month_end,
                     status='completed'
-                )
-            ) * 0.10
+                ).select_related('service')
+            month_revenue = sum(booking.service.price for booking in month_booking_qs if booking.service) * 0.10
+
+            month_services = Service.objects.filter(
+                created_at__gte=month_start,
+                created_at__lt=month_end,
+                is_published=True
+            ).count()
             
             months_data.append({
                 'month': month_start.strftime('%Y-%m'),
@@ -412,7 +421,24 @@ def admin_stats(request):
                 'bookings': month_bookings,
                 'revenue': float(month_revenue)
             })
-        
+            services_growth.append({
+                'month': month_start.strftime('%Y-%m'),
+                'count': month_services
+            })
+
+        def calculate_trend(series, key):
+            if len(series) < 2:
+                return 0
+            prev = series[-2].get(key) or 0
+            current = series[-1].get(key) or 0
+            if prev == 0:
+                return 0
+            return round(((current - prev) / prev) * 100, 1)
+
+        users_trend = calculate_trend(months_data, 'users')
+        services_trend = calculate_trend(services_growth, 'count')
+        revenue_trend = calculate_trend(months_data, 'revenue')
+
         from dashboard.serializers import AdminStatsSerializer
         
         stats_data = {
@@ -431,7 +457,11 @@ def admin_stats(request):
             'platform_revenue': float(platform_revenue),
             'users_growth': months_data,
             'bookings_growth': months_data,
-            'revenue_growth': months_data
+            'revenue_growth': months_data,
+            'services_growth': services_growth,
+            'users_trend': users_trend,
+            'services_trend': services_trend,
+            'revenue_trend': revenue_trend
         }
         
         serializer = AdminStatsSerializer(stats_data)

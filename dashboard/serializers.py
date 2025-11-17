@@ -143,3 +143,7 @@ class AdminStatsSerializer(serializers.Serializer):
     users_growth = serializers.ListField(child=serializers.DictField(), default=list)
     bookings_growth = serializers.ListField(child=serializers.DictField(), default=list)
     revenue_growth = serializers.ListField(child=serializers.DictField(), default=list)
+    services_growth = serializers.ListField(child=serializers.DictField(), default=list)
+    users_trend = serializers.FloatField(default=0)
+    services_trend = serializers.FloatField(default=0)
+    revenue_trend = serializers.FloatField(default=0)

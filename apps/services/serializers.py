@@ -38,6 +38,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     provider = ProviderSerializer(read_only=True)
     images = ServiceImageSerializer(many=True, read_only=True)
     average_rating = serializers.DecimalField(source='rating_avg', max_digits=3, decimal_places=2, read_only=True)
+    status = serializers.SerializerMethodField()
     
     # Campos adicionales del frontend (opcionales)
     location = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -56,7 +57,7 @@ class ServiceSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'provider_id', 'category', 'category_name', 'provider',
             'title', 'description', 'price', 'location_type',
-            'is_published', 'is_active', 'created_at', 'updated_at',
+            'is_published', 'is_active', 'status', 'created_at', 'updated_at',
             'reviews_count', 'average_rating', 'favorites_count',
             'views_count', 'bookings_count', 'images',
             # Campos adicionales del frontend
@@ -89,9 +90,21 @@ class ServiceSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("El precio debe ser mayor a 0")
         return value
+
+    def get_status(self, obj):
+        """Estado amigable para el frontend"""
+        if not obj.is_published:
+            return "PENDING"
+        if not obj.is_active:
+            return "INACTIVE"
+        return "ACTIVE"
     
     def create(self, validated_data):
         """Crear un nuevo servicio"""
+        # Valores por defecto para asegurar que el servicio quede activo/publicado
+        validated_data.setdefault('is_active', True)
+        validated_data.setdefault('is_published', True)
+        validated_data.setdefault('location_type', validated_data.get('location_type'))
         # Mapear location a location_type
         if 'location' in validated_data:
             validated_data['location_type'] = validated_data.pop('location')

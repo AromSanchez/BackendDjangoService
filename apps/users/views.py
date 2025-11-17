@@ -5,6 +5,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
+from django.utils import timezone
 
 from conectaya.authentication.decorators import jwt_required_drf
 from .models import User, UserProfile
@@ -148,26 +151,59 @@ def admin_users_list(request):
         role_filter = request.GET.get('role')
         status_filter = request.GET.get('status')
         provider_status_filter = request.GET.get('provider_status')
+        search_query = request.GET.get('search')
         
         users = User.objects.all()
         
         if role_filter:
             users = users.filter(role=role_filter)
         
-        if status_filter == 'active':
-            users = users.filter(is_active=True)
-        elif status_filter == 'inactive':
-            users = users.filter(is_active=False)
-        
+        if status_filter:
+            normalized_status = status_filter.lower()
+            if normalized_status == 'active':
+                users = users.filter(is_active=True)
+            elif normalized_status in ['inactive', 'suspended']:
+                users = users.filter(is_active=False)
+
         if provider_status_filter:
             users = users.filter(provider_status=provider_status_filter)
+
+        if search_query:
+            users = users.filter(
+                Q(full_name__icontains=search_query) |
+                Q(email__icontains=search_query) |
+                Q(phone_number__icontains=search_query)
+            )
         
         users = users.order_by('-created_at')
-        
-        serializer = UserListSerializer(users, many=True)
+        total_filtered = users.count()
+
+        today = timezone.localdate()
+        summary = {
+            'total': total_filtered,
+            'customers': users.filter(role='CUSTOMER').count(),
+            'providers': users.filter(role='PROVIDER').count(),
+            'admins': users.filter(role='ADMIN').count(),
+            'active': users.filter(is_active=True).count(),
+            'inactive': users.filter(is_active=False).count(),
+            'pending_providers': users.filter(role='PROVIDER', provider_status='PENDING').count(),
+            'new_today': users.filter(created_at__date=today).count()
+        }
+
+        paginator = PageNumberPagination()
+        paginator.page_size = int(request.GET.get('page_size') or 15)
+        paginated_users = paginator.paginate_queryset(users, request)
+        serializer = UserListSerializer(paginated_users, many=True)
+
         return Response({
-            'users': serializer.data,
-            'count': users.count()
+            'count': total_filtered,
+            'page': paginator.page.number,
+            'page_size': paginator.get_page_size(request),
+            'total_pages': paginator.page.paginator.num_pages,
+            'next': paginator.get_next_link(),
+            'previous': paginator.get_previous_link(),
+            'results': serializer.data,
+            'summary': summary
         }, status=status.HTTP_200_OK)
         
     except Exception as e:

@@ -103,31 +103,43 @@ class DashboardService:
     def get_admin_data(user):
         """
         Genera datos del dashboard para un ADMIN (versión simplificada)
-        
-        Args:
-            user: Instancia del modelo User
-            
-        Returns:
-            dict: Datos específicos para administradores
         """
-        # Datos básicos sin consultas complejas por ahora
+        total_users = User.objects.count()
+        customer_count = User.objects.filter(role='CUSTOMER').count()
+        provider_count = User.objects.filter(role='PROVIDER').count()
+        admin_count = User.objects.filter(role='ADMIN').count()
+
+        total_services = Service.objects.count()
+        active_services = Service.objects.filter(is_active=True, is_published=True).count()
+        pending_services = Service.objects.filter(is_published=False).count()
+
+        completed_bookings = Booking.objects.filter(status='completed')
+        total_revenue = completed_bookings.aggregate(
+            total=Sum('service__price')
+        )['total'] or 0
+
+        pending_providers = list(
+            User.objects.filter(role='PROVIDER', provider_status='PENDING')
+                .values('id', 'full_name', 'email', 'created_at')
+        )
+
         return {
             "usuarios": {
-                "total": 0,
-                "customers": 0,
-                "providers": 0,
-                "admins": 0
+                "total": total_users,
+                "customers": customer_count,
+                "providers": provider_count,
+                "admins": admin_count
             },
             "servicios": {
-                "total": 0,
-                "active": 0,
-                "pending": 0
+                "total": total_services,
+                "active": active_services,
+                "pending": pending_services
             },
             "transacciones": {
-                "total_revenue": 0,
-                "completed_bookings": 0
+                "total_revenue": float(total_revenue),
+                "completed_bookings": completed_bookings.count()
             },
-            "pending_providers": []
+            "pending_providers": pending_providers
         }
     
     @staticmethod
