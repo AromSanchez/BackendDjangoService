@@ -36,7 +36,7 @@ def favorites_list_create(request):
             if category:
                 favorites = favorites.filter(service__category__slug=category)
             
-            serializer = FavoriteListSerializer(favorites, many=True)
+            serializer = FavoriteSerializer(favorites, many=True)
             return Response({
                 'favorites': serializer.data,
                 'count': favorites.count()

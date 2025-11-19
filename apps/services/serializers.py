@@ -172,11 +172,13 @@ class ServiceListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     provider_name = serializers.CharField(source='provider.full_name', read_only=True)
     average_rating = serializers.DecimalField(source='rating_avg', max_digits=3, decimal_places=2, read_only=True)
+    images = ServiceImageSerializer(many=True, read_only=True)
     
     class Meta:
         model = Service
         fields = [
             'id', 'title', 'description', 'price', 'location_type',
             'category_name', 'provider_name', 'average_rating',
-            'reviews_count', 'favorites_count', 'created_at', 'is_published'
+            'reviews_count', 'favorites_count', 'created_at', 'is_published',
+            'images'
         ]
