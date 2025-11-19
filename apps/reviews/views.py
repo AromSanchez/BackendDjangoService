@@ -30,9 +30,20 @@ def reviews_list_create(request):
         user = get_object_or_404(User, id=user_id)
         
         if request.method == 'GET':
-            # Lista reviews del usuario
-            reviews = Review.objects.filter(reviewer_id=user_id, is_visible=True)
-            reviews = reviews.order_by('-created_at')
+            # Verificar si se solicita reviews de un servicio específico
+            service_id = request.GET.get('service_id')
+            
+            if service_id:
+                # Lista reviews de un servicio específico (público)
+                service = get_object_or_404(Service, id=service_id)
+                reviews = Review.objects.filter(
+                    service=service, 
+                    is_visible=True
+                ).order_by('-created_at')
+            else:
+                # Lista reviews del usuario autenticado
+                reviews = Review.objects.filter(reviewer_id=user_id, is_visible=True)
+                reviews = reviews.order_by('-created_at')
             
             serializer = ReviewListSerializer(reviews, many=True)
             return Response({
