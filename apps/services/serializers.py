@@ -39,6 +39,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     images = ServiceImageSerializer(many=True, read_only=True)
     average_rating = serializers.DecimalField(source='rating_avg', max_digits=3, decimal_places=2, read_only=True)
     status = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
     
     # Campos adicionales del frontend (opcionales)
     location = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -59,7 +60,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             'title', 'description', 'price', 'location_type',
             'is_published', 'is_active', 'status', 'created_at', 'updated_at',
             'reviews_count', 'average_rating', 'favorites_count',
-            'views_count', 'bookings_count', 'images',
+            'views_count', 'bookings_count', 'images', 'is_favorite',
             # Campos adicionales del frontend
             'location', 'duration_hours', 'requirements', 'terms_conditions', 'image_file_ids'
         ]
@@ -98,6 +99,17 @@ class ServiceSerializer(serializers.ModelSerializer):
         if not obj.is_active:
             return "INACTIVE"
         return "ACTIVE"
+    
+    def get_is_favorite(self, obj):
+        """Check if service is favorited by current user"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'jwt_user_id'):
+            from apps.favorites.models import Favorite
+            return Favorite.objects.filter(
+                user_id=request.jwt_user_id,
+                service=obj
+            ).exists()
+        return False
     
     def create(self, validated_data):
         """Crear un nuevo servicio"""

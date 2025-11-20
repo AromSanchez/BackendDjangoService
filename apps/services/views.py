@@ -121,7 +121,7 @@ def service_detail(request, service_id):
                 )
         
         if request.method == 'GET':
-            serializer = ServiceSerializer(service)
+            serializer = ServiceSerializer(service, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         
         elif request.method == 'PUT':
