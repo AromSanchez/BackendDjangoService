@@ -16,12 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from apps.services.provider_profile_view import provider_public_profile
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API de autenticación (ejemplos JWT)
     path('api/auth/', include('conectaya.authentication.urls')),
+    
+    # API pública de proveedores (sin autenticación)
+    path('api/providers/<int:provider_id>/profile/', provider_public_profile, name='provider-public-profile'),
     
     # API del dashboard principal (protegido)
     path('api/dashboard/', include('dashboard.urls')),
