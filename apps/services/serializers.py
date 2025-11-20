@@ -173,6 +173,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
     provider_name = serializers.CharField(source='provider.full_name', read_only=True)
     average_rating = serializers.DecimalField(source='rating_avg', max_digits=3, decimal_places=2, read_only=True)
     images = ServiceImageSerializer(many=True, read_only=True)
+    is_favorite = serializers.SerializerMethodField()
     
     class Meta:
         model = Service
@@ -180,5 +181,17 @@ class ServiceListSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'price', 'location_type',
             'category_name', 'provider_name', 'average_rating',
             'reviews_count', 'favorites_count', 'created_at', 'is_published',
-            'images'
+            'images', 'is_favorite'
         ]
+    
+    def get_is_favorite(self, obj):
+        """Check if service is favorited by current user"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'jwt_user_id'):
+            from apps.favorites.models import Favorite
+            return Favorite.objects.filter(
+                user_id=request.jwt_user_id,
+                service=obj
+            ).exists()
+        return False
+

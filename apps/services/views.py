@@ -186,7 +186,9 @@ def services_public_list(request):
         # Ordenar por rating y fecha
         services = services.order_by('-rating_avg', '-created_at')
         
-        serializer = ServiceSerializer(services, many=True)
+        # Use ServiceListSerializer with context for is_favorite
+        from .serializers import ServiceListSerializer
+        serializer = ServiceListSerializer(services, many=True, context={'request': request})
         return Response({
             'services': serializer.data,
             'count': services.count()
