@@ -122,11 +122,12 @@ class ReviewListSerializer(serializers.ModelSerializer):
     
     reviewer_name = serializers.CharField(source='reviewer.full_name', read_only=True)
     service_title = serializers.CharField(source='service.title', read_only=True)
+    provider_name = serializers.CharField(source='service.provider.full_name', read_only=True)
     
     class Meta:
         model = Review
         fields = [
-            'id', 'reviewer_name', 'service_title', 'rating', 
+            'id', 'reviewer_name', 'service_id', 'service_title', 'provider_name', 'rating', 
             'comment', 'created_at', 'is_visible'
         ]
 
