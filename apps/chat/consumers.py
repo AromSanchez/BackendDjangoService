@@ -23,15 +23,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         Manejar nueva conexión WebSocket
         """
-        # Obtener token de la query string
-        token = self.scope['query_string'].decode('utf-8')
-        if token.startswith('token='):
-            token = token[6:]  # Remover 'token='
-        
-        # Autenticar usuario
-        self.user = await self.authenticate_user(token)
-        
-        if not self.user or self.user == AnonymousUser():
+        # Obtener usuario autenticado del scope (ya autenticado por middleware)
+        self.user = self.scope.get('user', AnonymousUser())
+
+        if not self.user or isinstance(self.user, AnonymousUser) or not self.user.is_authenticated:
             logger.warning("Conexión WebSocket rechazada: usuario no autenticado")
             await self.close()
             return

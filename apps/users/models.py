@@ -60,6 +60,9 @@ class UserProfile(models.Model):
     notification_email = models.BooleanField(default=True)
     notification_push = models.BooleanField(default=True)
     
+    # Ganancias del proveedor
+    total_earnings = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -81,3 +84,12 @@ class UserProfile(models.Model):
             return User.objects.get(id=self.user_id)
         except User.DoesNotExist:
             return None
+    
+    def add_earnings(self, amount):
+        """Incrementar ganancias del proveedor"""
+        from decimal import Decimal
+        if amount and amount > 0:
+            self.total_earnings += Decimal(str(amount))
+            self.save()
+            return True
+        return False

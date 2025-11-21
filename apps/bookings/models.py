@@ -27,6 +27,7 @@ class Booking(models.Model):
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
     
     # Detalles
+    service_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     booking_date = models.DateField(null=True, blank=True)
     booking_time = models.TimeField(null=True, blank=True)
     booking_notes = models.TextField(blank=True, null=True)

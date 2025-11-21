@@ -497,3 +497,227 @@ def conversations_unread_count(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['POST'])
+@jwt_required_drf
+def create_booking_from_chat(request, conversation_id):
+    """
+    Crear un booking desde una conversación de chat
+    """
+    try:
+        user_id = request.jwt_user_id
+        conversation = get_object_or_404(Conversation, id=conversation_id)
+        
+        # Verificar que el usuario participe en la conversación
+        participant = conversation.participants.filter(user_id=user_id).first()
+        if not participant:
+            return Response(
+                {'error': 'No tienes permisos para acceder a esta conversación'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Verificar que el usuario sea cliente
+        user = get_object_or_404(User, id=user_id)
+        if user.role != 'CUSTOMER':
+            return Response(
+                {'error': 'Solo los clientes pueden crear solicitudes'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Obtener datos del booking
+        from apps.services.models import Service
+        service_id = request.data.get('service_id')
+        if not service_id:
+            return Response(
+                {'error': 'service_id es requerido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        service = get_object_or_404(Service, id=service_id)
+        
+        # Crear el booking
+        booking = Booking.objects.create(
+            service=service,
+            customer_id=user_id,
+            provider_id=service.provider_id,
+            service_price=service.price,
+            booking_notes=request.data.get('notes', ''),
+            booking_date=request.data.get('booking_date'),
+            booking_time=request.data.get('booking_time'),
+            customer_address=request.data.get('customer_address'),
+            status='pending'
+        )
+        
+        # Crear mensaje de sistema en el chat
+        Message.objects.create(
+            conversation=conversation,
+            sender_id=user_id,
+            message_type='booking_action',
+            booking_action='request_acceptance',
+            content=f'Solicitud de servicio enviada: {service.title} - S/{service.price}'
+        )
+        
+        # Actualizar timestamp de la conversación
+        conversation.last_message_at = timezone.now()
+        conversation.save()
+        
+        # Incrementar contador de no leídos para el proveedor
+        other_participants = conversation.participants.exclude(user_id=user_id)
+        for other_participant in other_participants:
+            other_participant.unread_count += 1
+            other_participant.save()
+        
+        from apps.bookings.serializers import BookingSerializer
+        return Response(
+            BookingSerializer(booking).data,
+            status=status.HTTP_201_CREATED
+        )
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@jwt_required_drf
+def create_or_get_conversation_by_service(request, service_id):
+    """
+    Obtener o crear conversación para un servicio específico
+    """
+    try:
+        user_id = request.jwt_user_id
+        from apps.services.models import Service
+        service = get_object_or_404(Service, id=service_id)
+        
+        # Verificar que el usuario no sea el proveedor del servicio
+        if user_id == service.provider_id:
+            return Response(
+                {'error': 'No puedes iniciar un chat con tu propio servicio'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Buscar booking existente entre este cliente y proveedor para este servicio
+        existing_booking = Booking.objects.filter(
+            service=service,
+            customer_id=user_id,
+            provider_id=service.provider_id
+        ).order_by('-created_at').first()
+        
+        if existing_booking and hasattr(existing_booking, 'conversation'):
+            # Ya existe una conversación
+            conversation = existing_booking.conversation
+        else:
+            # Crear nuevo booking y conversación
+            booking = Booking.objects.create(
+                service=service,
+                customer_id=user_id,
+                provider_id=service.provider_id,
+                service_price=service.price,
+                status='negotiating'
+            )
+            
+            # Crear conversación
+            conversation = Conversation.objects.create(booking=booking)
+            
+            # Crear participantes
+            ConversationParticipant.objects.create(
+                conversation=conversation,
+                user_id=user_id
+            )
+            ConversationParticipant.objects.create(
+                conversation=conversation,
+                user_id=service.provider_id
+            )
+            
+            # Mensaje de bienvenida
+            Message.objects.create(
+                conversation=conversation,
+                sender_id=user_id,
+                message_type='system',
+                content=f'Conversación iniciada sobre el servicio: {service.title}'
+            )
+            
+            conversation.last_message_at = timezone.now()
+            conversation.save()
+        
+        serializer = ConversationSerializer(conversation)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@jwt_required_drf
+def get_provider_earnings(request):
+    """
+    Obtener estadísticas de ganancias del proveedor
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea proveedor
+        if user.role != 'PROVIDER':
+            return Response(
+                {'error': 'Solo los proveedores pueden ver sus ganancias'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        from apps.users.models import UserProfile
+        from datetime import datetime, timedelta
+        
+        # Obtener o crear perfil
+        profile, created = UserProfile.objects.get_or_create(user_id=user_id)
+        
+        # Ganancias totales
+        total_earnings = profile.total_earnings
+        
+        # Bookings completados
+        completed_bookings = Booking.objects.filter(
+            provider_id=user_id,
+            status='completed'
+        ).order_by('-completed_at')
+        
+        # Ganancias del mes actual
+        current_month = datetime.now().replace(day=1)
+        monthly_bookings = completed_bookings.filter(
+            completed_at__gte=current_month
+        )
+        
+        monthly_earnings = sum(
+            (booking.service_price or booking.service.price or 0) 
+            for booking in monthly_bookings
+        )
+        
+        # Últimos servicios completados
+        recent_completed = []
+        for booking in completed_bookings[:10]:
+            recent_completed.append({
+                'id': booking.id,
+                'service_title': booking.service.title,
+                'price': float(booking.service_price or booking.service.price or 0),
+                'completed_at': booking.completed_at,
+                'customer_name': booking.customer.full_name if booking.customer else 'N/A'
+            })
+        
+        return Response({
+            'total_earnings': float(total_earnings),
+            'monthly_earnings': float(monthly_earnings),
+            'total_completed_services': completed_bookings.count(),
+            'monthly_completed_services': monthly_bookings.count(),
+            'recent_completed': recent_completed
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+

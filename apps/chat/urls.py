@@ -1,27 +1,33 @@
 """
 URLs para el módulo de chat
 """
+"""
+URLs para el módulo de chat
+"""
 from django.urls import path
 from . import views
 
 app_name = 'chat'
 
 urlpatterns = [
-    # CRUD básico de conversaciones
-    path('conversations/', views.conversations_list_create, name='conversations_list_create'),
-    path('conversations/<int:conversation_id>/', views.conversation_detail, name='conversation_detail'),
+    # Conversaciones
+    path('conversations/', views.conversations_list_create, name='conversations-list-create'),
+    path('conversations/<int:conversation_id>/', views.conversation_detail, name='conversation-detail'),
+    path('conversations/<int:conversation_id>/messages/', views.conversation_messages, name='conversation-messages'),
+    path('conversations/<int:conversation_id>/mark-read/', views.conversation_mark_read, name='conversation-mark-read'),
+    path('conversations/<int:conversation_id>/create-booking/', views.create_booking_from_chat, name='create-booking-from-chat'),
+    path('conversations/<int:conversation_id>/send-action/', views.send_booking_action_message, name='send-booking-action'),
+    path('conversations/<int:conversation_id>/send-file/', views.send_file_message, name='send-file-message'),
+    path('conversations/<int:conversation_id>/search/', views.conversation_search_messages, name='conversation-search'),
     
-    # Mensajes
-    path('conversations/<int:conversation_id>/messages/', views.conversation_messages, name='conversation_messages'),
-    path('conversations/<int:conversation_id>/read/', views.conversation_mark_read, name='conversation_mark_read'),
+    # Obtener conversación por booking o servicio
+    path('conversations/by-booking/<int:booking_id>/', views.conversation_by_booking, name='conversation-by-booking'),
+    path('conversations/by-service/<int:service_id>/', views.create_or_get_conversation_by_service, name='conversation-by-service'),
     
-    # Mensajes avanzados
-    path('conversations/<int:conversation_id>/booking-action/', views.send_booking_action_message, name='send_booking_action_message'),
-    path('conversations/<int:conversation_id>/file/', views.send_file_message, name='send_file_message'),
-    path('conversations/<int:conversation_id>/search/', views.conversation_search_messages, name='conversation_search_messages'),
+    # Estadísticas
+    path('stats/', views.chat_stats, name='chat-stats'),
+    path('unread-count/', views.conversations_unread_count, name='unread-count'),
     
-    # Utilidades
-    path('booking/<int:booking_id>/', views.conversation_by_booking, name='conversation_by_booking'),
-    path('stats/', views.chat_stats, name='chat_stats'),
-    path('unread/', views.conversations_unread_count, name='conversations_unread_count'),
+    # Ganancias del proveedor
+    path('provider/earnings/', views.get_provider_earnings, name='provider-earnings'),
 ]

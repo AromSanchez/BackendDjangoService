@@ -12,7 +12,7 @@ class UserBasicSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email']
+        fields = ['id', 'full_name', 'email', 'role']
 
 
 class BookingBasicSerializer(serializers.ModelSerializer):
@@ -128,7 +128,7 @@ class ConversationListSerializer(serializers.ModelSerializer):
     
     booking_service_title = serializers.CharField(source='booking.service.title', read_only=True)
     booking_status = serializers.CharField(source='booking.status', read_only=True)
-    other_participant_name = serializers.SerializerMethodField()
+    other_user = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     last_message_content = serializers.CharField(source='messages.first.content', read_only=True)
     
@@ -136,12 +136,12 @@ class ConversationListSerializer(serializers.ModelSerializer):
         model = Conversation
         fields = [
             'id', 'booking_service_title', 'booking_status', 
-            'other_participant_name', 'unread_count', 'last_message_content',
+            'other_user', 'unread_count', 'last_message_content',
             'last_message_at', 'created_at'
         ]
     
-    def get_other_participant_name(self, obj):
-        """Obtener el nombre del otro participante"""
+    def get_other_user(self, obj):
+        """Obtener el otro participante"""
         request = self.context.get('request')
         if not request or not hasattr(request, 'jwt_user_id'):
             return None
@@ -150,7 +150,7 @@ class ConversationListSerializer(serializers.ModelSerializer):
         other_participant = obj.participants.exclude(user_id=current_user_id).first()
         
         if other_participant and other_participant.user:
-            return other_participant.user.full_name
+            return UserBasicSerializer(other_participant.user).data
         return None
     
     def get_unread_count(self, obj):

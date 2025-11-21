@@ -303,6 +303,21 @@ def booking_complete(request, booking_id):
         booking.completed_at = timezone.now()
         booking.save()
         
+        # Incrementar ganancias del proveedor
+        from apps.users.models import UserProfile
+        try:
+            provider_profile = UserProfile.objects.get(user_id=user_id)
+            # Usar el precio guardado en el booking o el precio actual del servicio
+            price = booking.service_price or booking.service.price
+            if price:
+                provider_profile.add_earnings(price)
+        except UserProfile.DoesNotExist:
+            # Crear perfil si no existe
+            provider_profile = UserProfile.objects.create(user_id=user_id)
+            price = booking.service_price or booking.service.price
+            if price:
+                provider_profile.add_earnings(price)
+        
         return Response(
             BookingSerializer(booking).data,
             status=status.HTTP_200_OK

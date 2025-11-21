@@ -35,7 +35,7 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = [
             'id', 'service', 'customer_id', 'provider_id', 'customer', 'provider',
-            'status', 'status_display', 'booking_date', 'booking_time', 
+            'status', 'status_display', 'service_price', 'booking_date', 'booking_time', 
             'booking_notes', 'customer_address', 'accepted_at', 'in_progress_at',
             'completed_at', 'canceled_at', 'cancellation_reason', 
             'created_at', 'updated_at'
@@ -47,6 +47,10 @@ class BookingSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Crear un nuevo booking"""
+        # Capturar el precio del servicio al momento de crear el booking
+        service = validated_data.get('service')
+        if service and not validated_data.get('service_price'):
+            validated_data['service_price'] = service.price
         return Booking.objects.create(**validated_data)
     
     def update(self, instance, validated_data):
