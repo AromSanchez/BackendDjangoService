@@ -125,6 +125,10 @@ def conversation_messages(request, conversation_id):
             # Lista mensajes de la conversación
             messages = conversation.messages.order_by('-created_at')
             
+            # Filtrar mensajes anteriores a la fecha de vaciado si existe
+            if participant.cleared_at:
+                messages = messages.filter(created_at__gt=participant.cleared_at)
+            
             # Paginación simple
             limit = int(request.GET.get('limit', 50))
             offset = int(request.GET.get('offset', 0))
@@ -204,6 +208,40 @@ def conversation_mark_read(request, conversation_id):
         return Response({
             'message': 'Conversación marcada como leída',
             'messages_marked': unread_messages.count()
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+
+@api_view(['POST'])
+@jwt_required_drf
+def clear_conversation_history(request, conversation_id):
+    """
+    Vaciar historial de chat para el usuario actual
+    """
+    try:
+        user_id = request.jwt_user_id
+        conversation = get_object_or_404(Conversation, id=conversation_id)
+        
+        # Verificar que el usuario participe en la conversación
+        participant = conversation.participants.filter(user_id=user_id).first()
+        if not participant:
+            return Response(
+                {'error': 'No tienes permisos para acceder a esta conversación'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Actualizar fecha de vaciado
+        participant.cleared_at = timezone.now()
+        participant.save()
+        
+        return Response({
+            'message': 'Historial de chat vaciado correctamente'
         }, status=status.HTTP_200_OK)
         
     except Exception as e:

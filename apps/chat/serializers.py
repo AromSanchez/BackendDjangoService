@@ -43,11 +43,12 @@ class MessageSerializer(serializers.ModelSerializer):
     
     sender = UserBasicSerializer(read_only=True)
     message_type_display = serializers.CharField(source='get_message_type_display', read_only=True)
+    conversation_id = serializers.IntegerField(source='conversation.id', read_only=True)
     
     class Meta:
         model = Message
         fields = [
-            'id', 'conversation', 'sender_id', 'sender', 'message_type',
+            'id', 'conversation', 'conversation_id', 'sender_id', 'sender', 'message_type',
             'message_type_display', 'content', 'file_id', 'booking_action',
             'is_read', 'created_at'
         ]

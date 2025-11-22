@@ -44,6 +44,14 @@ class User(models.Model):
     def is_admin(self):
         """Verifica si el usuario es administrador"""
         return self.role == 'ADMIN'
+    
+    @property
+    def is_authenticated(self):
+        """
+        Siempre retorna True para instancias de User.
+        Requerido para compatibilidad con el sistema de autenticación de Django.
+        """
+        return True
 
 
 class UserProfile(models.Model):

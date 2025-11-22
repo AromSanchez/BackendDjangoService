@@ -29,6 +29,7 @@ class ConversationParticipant(models.Model):
     user_id = models.BigIntegerField(db_index=True)
     unread_count = models.IntegerField(default=0)
     last_read_at = models.DateTimeField(null=True, blank=True)
+    cleared_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'conversation_participants'

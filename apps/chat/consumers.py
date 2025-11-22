@@ -26,8 +26,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Obtener usuario autenticado del scope (ya autenticado por middleware)
         self.user = self.scope.get('user', AnonymousUser())
 
-        if not self.user or isinstance(self.user, AnonymousUser) or not self.user.is_authenticated:
-            logger.warning("Conexión WebSocket rechazada: usuario no autenticado")
+        # Verificar autenticación
+        if isinstance(self.user, AnonymousUser):
+            logger.warning("Conexión WebSocket rechazada: usuario anónimo")
+            await self.close()
+            return
+            
+        if not self.user or not hasattr(self.user, 'id'):
+            logger.warning("Conexión WebSocket rechazada: usuario inválido")
             await self.close()
             return
         
@@ -148,7 +154,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     f'user_{other_participant.id}',
                     {
                         'type': 'typing_indicator',
-                        'chat_id': chat_id,
+                        'conversation_id': chat_id,
                         'user_id': self.user.id,
                         'is_typing': is_typing
                     }
@@ -173,7 +179,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'typing',
             'data': {
-                'chat_id': event['chat_id'],
+                'conversation_id': event['conversation_id'],
                 'user_id': event['user_id'],
                 'is_typing': event['is_typing']
             }
@@ -215,12 +221,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             conversation = Conversation.objects.get(id=conversation_id)
             # Verificar que el usuario tiene acceso a esta conversación
-            if (conversation.user1_id == self.user.id or 
-                conversation.user2_id == self.user.id):
+            participant = conversation.participants.filter(user_id=self.user.id).first()
+            if participant:
                 return conversation
         except Conversation.DoesNotExist:
             pass
         return None
+
 
     @database_sync_to_async
     def create_message(self, conversation, content):
@@ -229,7 +236,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         return Message.objects.create(
             conversation=conversation,
-            sender=self.user,
+            sender_id=self.user.id,
             content=content
         )
 
@@ -244,16 +251,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_conversation_participants(self, conversation):
         """
-        Obtener participantes de la conversación
+        Obtener todos los participantes de la conversación
         """
-        return [conversation.user1, conversation.user2]
+        participants = conversation.participants.all()
+        return [p.user for p in participants if p.user]
 
     @database_sync_to_async
     def get_other_participant(self, conversation):
         """
         Obtener el otro participante de la conversación
         """
-        if conversation.user1_id == self.user.id:
-            return conversation.user2
-        else:
-            return conversation.user1
+        participants = conversation.participants.exclude(user_id=self.user.id)
+        if participants.exists():
+            return participants.first().user
+        return None
