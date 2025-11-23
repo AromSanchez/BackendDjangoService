@@ -16,6 +16,7 @@ urlpatterns = [
     path('conversations/<int:conversation_id>/messages/', views.conversation_messages, name='conversation-messages'),
     path('conversations/<int:conversation_id>/mark-read/', views.conversation_mark_read, name='conversation-mark-read'),
     path('conversations/<int:conversation_id>/clear-history/', views.clear_conversation_history, name='clear-conversation-history'),
+    path('conversations/<int:conversation_id>/delete/', views.delete_conversation, name='delete-conversation'),
     path('conversations/<int:conversation_id>/create-booking/', views.create_booking_from_chat, name='create-booking-from-chat'),
     path('conversations/<int:conversation_id>/send-action/', views.send_booking_action_message, name='send-booking-action'),
     path('conversations/<int:conversation_id>/send-file/', views.send_file_message, name='send-file-message'),

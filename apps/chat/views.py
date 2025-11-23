@@ -29,9 +29,10 @@ def conversations_list_create(request):
         user = get_object_or_404(User, id=user_id)
         
         if request.method == 'GET':
-            # Lista conversaciones donde participa el usuario
+            # Lista conversaciones donde participa el usuario y no ha sido eliminada
             conversations = Conversation.objects.filter(
-                participants__user_id=user_id
+                participants__user_id=user_id,
+                participants__deleted_at__isnull=True
             ).order_by('-last_message_at')
             
             serializer = ConversationListSerializer(
@@ -156,10 +157,13 @@ def conversation_messages(request, conversation_id):
                 conversation.last_message_at = timezone.now()
                 conversation.save()
                 
-                # Incrementar contador de no leídos para otros participantes
+                # Incrementar contador de no leídos para otros participantes y reactivar chat si estaba eliminado
                 other_participants = conversation.participants.exclude(user_id=user_id)
                 for other_participant in other_participants:
                     other_participant.unread_count += 1
+                    # Reactivar chat si estaba eliminado (soft delete)
+                    if other_participant.deleted_at:
+                        other_participant.deleted_at = None
                     other_participant.save()
                 
                 return Response(
@@ -242,6 +246,39 @@ def clear_conversation_history(request, conversation_id):
         
         return Response({
             'message': 'Historial de chat vaciado correctamente'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['DELETE'])
+@jwt_required_drf
+def delete_conversation(request, conversation_id):
+    """
+    Eliminar conversación (soft delete para el usuario actual)
+    """
+    try:
+        user_id = request.jwt_user_id
+        conversation = get_object_or_404(Conversation, id=conversation_id)
+        
+        # Verificar que el usuario participe en la conversación
+        participant = conversation.participants.filter(user_id=user_id).first()
+        if not participant:
+            return Response(
+                {'error': 'No tienes permisos para acceder a esta conversación'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Marcar como eliminado (soft delete)
+        participant.deleted_at = timezone.now()
+        participant.save()
+        
+        return Response({
+            'message': 'Conversación eliminada correctamente'
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
@@ -386,10 +423,12 @@ def send_booking_action_message(request, conversation_id):
         conversation.last_message_at = timezone.now()
         conversation.save()
         
-        # Incrementar contador de no leídos para otros participantes
+        # Incrementar contador de no leídos para otros participantes y reactivar chat
         other_participants = conversation.participants.exclude(user_id=user_id)
         for other_participant in other_participants:
             other_participant.unread_count += 1
+            if other_participant.deleted_at:
+                other_participant.deleted_at = None
             other_participant.save()
         
         return Response(
@@ -450,10 +489,12 @@ def send_file_message(request, conversation_id):
         conversation.last_message_at = timezone.now()
         conversation.save()
         
-        # Incrementar contador de no leídos para otros participantes
+        # Incrementar contador de no leídos para otros participantes y reactivar chat
         other_participants = conversation.participants.exclude(user_id=user_id)
         for other_participant in other_participants:
             other_participant.unread_count += 1
+            if other_participant.deleted_at:
+                other_participant.deleted_at = None
             other_participant.save()
         
         return Response(
@@ -600,10 +641,12 @@ def create_booking_from_chat(request, conversation_id):
         conversation.last_message_at = timezone.now()
         conversation.save()
         
-        # Incrementar contador de no leídos para el proveedor
+        # Incrementar contador de no leídos para el proveedor y reactivar chat
         other_participants = conversation.participants.exclude(user_id=user_id)
         for other_participant in other_participants:
             other_participant.unread_count += 1
+            if other_participant.deleted_at:
+                other_participant.deleted_at = None
             other_participant.save()
         
         from apps.bookings.serializers import BookingSerializer
