@@ -10,6 +10,7 @@ from conectaya.authentication.jwt_utils import JWTUtils
 from apps.users.models import User
 from apps.chat.models import Conversation, Message
 from apps.chat.serializers import MessageSerializer
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -234,11 +235,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         Crear nuevo mensaje
         """
+        from datetime import timedelta
+        
+        message = Message.objects.create(
+            conversation=conversation,
+            sender_id=self.user.id,
+            content=content
         )
         
         # Actualizar timestamp de la conversación
         conversation.last_message_at = timezone.now()
-        await database_sync_to_async(conversation.save)()
+        conversation.save()
+        
+        # Incrementar contador de no leídos para otros participantes y reactivar chat si estaba eliminado
+        other_participants = conversation.participants.exclude(user_id=self.user.id)
+        for other_participant in other_participants:
+            other_participant.unread_count += 1
+            # Reactivar chat si estaba eliminado (soft delete)
+            # y limpiar historial para que solo se vean mensajes nuevos
+            if other_participant.deleted_at:
+                other_participant.deleted_at = None
+                # Establecer cleared_at justo antes del mensaje actual para que este mensaje SÍ se vea
+                # pero los mensajes anteriores no
+                other_participant.cleared_at = message.created_at - timedelta(seconds=1)
+            other_participant.save()
         
         return message
 

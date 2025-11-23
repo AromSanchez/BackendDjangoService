@@ -144,6 +144,7 @@ def conversation_messages(request, conversation_id):
         
         elif request.method == 'POST':
             # Enviar mensaje
+            from datetime import timedelta
             data = request.data.copy()
             serializer = MessageCreateSerializer(data=data)
             
@@ -162,8 +163,11 @@ def conversation_messages(request, conversation_id):
                 for other_participant in other_participants:
                     other_participant.unread_count += 1
                     # Reactivar chat si estaba eliminado (soft delete)
+                    # y limpiar historial para que solo se vean mensajes nuevos
                     if other_participant.deleted_at:
                         other_participant.deleted_at = None
+                        # Establecer cleared_at justo antes del mensaje actual para que este mensaje SÍ se vea
+                        other_participant.cleared_at = message.created_at - timedelta(seconds=1)
                     other_participant.save()
                 
                 return Response(
@@ -380,6 +384,7 @@ def send_booking_action_message(request, conversation_id):
     Enviar mensaje de acción de booking (aceptar, rechazar, etc.)
     """
     try:
+        from datetime import timedelta
         user_id = request.jwt_user_id
         conversation = get_object_or_404(Conversation, id=conversation_id)
         
@@ -427,8 +432,10 @@ def send_booking_action_message(request, conversation_id):
         other_participants = conversation.participants.exclude(user_id=user_id)
         for other_participant in other_participants:
             other_participant.unread_count += 1
+            # Reactivar chat si estaba eliminado y limpiar historial
             if other_participant.deleted_at:
                 other_participant.deleted_at = None
+                other_participant.cleared_at = message.created_at - timedelta(seconds=1)
             other_participant.save()
         
         return Response(
@@ -450,6 +457,7 @@ def send_file_message(request, conversation_id):
     Enviar mensaje con archivo (imagen o documento)
     """
     try:
+        from datetime import timedelta
         user_id = request.jwt_user_id
         conversation = get_object_or_404(Conversation, id=conversation_id)
         
@@ -493,8 +501,10 @@ def send_file_message(request, conversation_id):
         other_participants = conversation.participants.exclude(user_id=user_id)
         for other_participant in other_participants:
             other_participant.unread_count += 1
+            # Reactivar chat si estaba eliminado y limpiar historial
             if other_participant.deleted_at:
                 other_participant.deleted_at = None
+                other_participant.cleared_at = message.created_at - timedelta(seconds=1)
             other_participant.save()
         
         return Response(
@@ -585,6 +595,7 @@ def create_booking_from_chat(request, conversation_id):
     Crear un booking desde una conversación de chat
     """
     try:
+        from datetime import timedelta
         user_id = request.jwt_user_id
         conversation = get_object_or_404(Conversation, id=conversation_id)
         
@@ -629,7 +640,7 @@ def create_booking_from_chat(request, conversation_id):
         )
         
         # Crear mensaje de sistema en el chat
-        Message.objects.create(
+        message = Message.objects.create(
             conversation=conversation,
             sender_id=user_id,
             message_type='booking_action',
@@ -645,8 +656,10 @@ def create_booking_from_chat(request, conversation_id):
         other_participants = conversation.participants.exclude(user_id=user_id)
         for other_participant in other_participants:
             other_participant.unread_count += 1
+            # Reactivar chat si estaba eliminado y limpiar historial
             if other_participant.deleted_at:
                 other_participant.deleted_at = None
+                other_participant.cleared_at = message.created_at - timedelta(seconds=1)
             other_participant.save()
         
         from apps.bookings.serializers import BookingSerializer
