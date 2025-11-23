@@ -680,6 +680,7 @@ def create_booking_from_chat(request, conversation_id):
 def create_or_get_conversation_by_service(request, service_id):
     """
     Obtener o crear conversación para un servicio específico
+    La conversación se crea SIN booking. El booking se crea después cuando el cliente solicita.
     """
     try:
         user_id = request.jwt_user_id
@@ -693,35 +694,28 @@ def create_or_get_conversation_by_service(request, service_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Buscar booking existente entre este cliente y proveedor para este servicio
-        existing_booking = Booking.objects.filter(
-            service=service,
-            customer_id=user_id,
-            provider_id=service.provider_id
-        ).order_by('-created_at').first()
+        # Buscar conversación existente para este servicio entre cliente y proveedor
+        existing_conversation = Conversation.objects.filter(
+            service_id=service_id,
+            participants__user_id=user_id
+        ).filter(
+            participants__user_id=service.provider_id
+        ).first()
         
-        if existing_booking and hasattr(existing_booking, 'conversation'):
+        if existing_conversation:
             # Ya existe una conversación
-            conversation = existing_booking.conversation
+            conversation = existing_conversation
             
-            # Reactivar conversación para AMBOS participantes (cliente y proveedor)
-            # si alguno la había eliminado
+            # Reactivar conversación para AMBOS participantes si alguno la había eliminado
             participants = conversation.participants.filter(deleted_at__isnull=False)
             for participant in participants:
                 participant.deleted_at = None
                 participant.save()
         else:
-            # Crear nuevo booking y conversación
-            booking = Booking.objects.create(
-                service=service,
-                customer_id=user_id,
-                provider_id=service.provider_id,
-                service_price=service.price,
-                status='negotiating'
+            # Crear nueva conversación SIN booking
+            conversation = Conversation.objects.create(
+                service_id=service_id
             )
-            
-            # Crear conversación
-            conversation = Conversation.objects.create(booking=booking)
             
             # Crear participantes
             ConversationParticipant.objects.create(

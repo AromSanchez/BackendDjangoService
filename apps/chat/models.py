@@ -8,9 +8,19 @@ from apps.users.models import User
 
 class Conversation(models.Model):
     """
-    Conversación de chat (una por booking)
+    Conversación de chat
+    Puede existir independientemente de un booking.
+    El booking se crea después cuando el cliente solicita el servicio.
     """
-    booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='conversation')
+    booking = models.OneToOneField(
+        Booking, 
+        on_delete=models.CASCADE, 
+        related_name='conversation',
+        null=True,
+        blank=True
+    )
+    # ID del servicio sobre el que trata la conversación
+    service_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     last_message_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -18,6 +28,7 @@ class Conversation(models.Model):
         db_table = 'conversations'
         indexes = [
             models.Index(fields=['-last_message_at']),
+            models.Index(fields=['service_id']),
         ]
 
 

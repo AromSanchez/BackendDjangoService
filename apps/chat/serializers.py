@@ -114,32 +114,62 @@ class ConversationSerializer(serializers.ModelSerializer):
     booking = BookingBasicSerializer(read_only=True)
     participants = ConversationParticipantSerializer(many=True, read_only=True)
     last_message = MessageListSerializer(read_only=True)
+    booking_service_title = serializers.SerializerMethodField()
     
     class Meta:
         model = Conversation
         fields = [
-            'id', 'booking', 'participants', 'last_message',
+            'id', 'service_id', 'booking', 'booking_service_title', 'participants', 'last_message',
             'last_message_at', 'created_at'
         ]
         read_only_fields = ['id', 'last_message_at', 'created_at']
+
+    def get_booking_service_title(self, obj):
+        """Obtener título del servicio desde booking o service_id"""
+        if obj.booking and obj.booking.service:
+            return obj.booking.service.title
+        elif obj.service_id:
+            # Obtener servicio por service_id
+            from apps.services.models import Service
+            try:
+                service = Service.objects.get(id=obj.service_id)
+                return service.title
+            except Service.DoesNotExist:
+                return None
+        return None
 
 
 class ConversationListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listas de conversaciones"""
     
-    booking_service_title = serializers.CharField(source='booking.service.title', read_only=True)
+    booking_service_title = serializers.SerializerMethodField()
     booking_status = serializers.CharField(source='booking.status', read_only=True)
+    booking = BookingBasicSerializer(read_only=True)
     other_user = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
-    last_message_content = serializers.CharField(source='messages.first.content', read_only=True)
+    last_message = serializers.SerializerMethodField()
     
     class Meta:
         model = Conversation
         fields = [
-            'id', 'booking_service_title', 'booking_status', 
-            'other_user', 'unread_count', 'last_message_content',
+            'id', 'service_id', 'booking', 'booking_service_title', 'booking_status', 
+            'other_user', 'unread_count', 'last_message',
             'last_message_at', 'created_at'
         ]
+    
+    def get_booking_service_title(self, obj):
+        """Obtener título del servicio desde booking o service_id"""
+        if obj.booking and obj.booking.service:
+            return obj.booking.service.title
+        elif obj.service_id:
+            # Obtener servicio por service_id
+            from apps.services.models import Service
+            try:
+                service = Service.objects.get(id=obj.service_id)
+                return service.title
+            except Service.DoesNotExist:
+                return None
+        return None
     
     def get_other_user(self, obj):
         """Obtener el otro participante"""
@@ -164,6 +194,17 @@ class ConversationListSerializer(serializers.ModelSerializer):
         participant = obj.participants.filter(user_id=current_user_id).first()
         
         return participant.unread_count if participant else 0
+    
+    def get_last_message(self, obj):
+        """Obtener último mensaje de la conversación"""
+        last_msg = obj.messages.order_by('-created_at').first()
+        if last_msg:
+            return {
+                'content': last_msg.content,
+                'created_at': last_msg.created_at,
+                'sender_id': last_msg.sender_id
+            }
+        return None
 
 
 class ConversationCreateSerializer(serializers.ModelSerializer):
