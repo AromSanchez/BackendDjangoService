@@ -78,6 +78,9 @@ def dashboard_view(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"ERROR DASHBOARD: {str(e)}")
         return Response(
             {
                 'error': 'Error interno del servidor',
@@ -169,7 +172,10 @@ def provider_stats(request):
         
         # Ingresos (estimados)
         completed_bookings_qs = bookings.filter(status='completed')
-        total_revenue = sum(booking.service.price for booking in completed_bookings_qs)
+        total_revenue = sum(
+            (booking.service_price if booking.service_price is not None else booking.service.price) 
+            for booking in completed_bookings_qs
+        )
         
         # Estadísticas del mes actual
         current_month = datetime.now().replace(day=1)
@@ -179,7 +185,8 @@ def provider_stats(request):
         ).count()
         
         monthly_revenue = sum(
-            booking.service.price for booking in bookings.filter(
+            (booking.service_price if booking.service_price is not None else booking.service.price)
+            for booking in bookings.filter(
                 created_at__gte=current_month,
                 status='completed'
             )
@@ -227,6 +234,8 @@ def provider_stats(request):
             'bookings_by_month': months_data,
             'revenue_by_month': months_data
         }
+        
+        print(f"DEBUG: Provider Stats for user {user_id}: {stats_data}")
         
         serializer = ProviderStatsSerializer(stats_data)
         return Response(serializer.data, status=status.HTTP_200_OK)

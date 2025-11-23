@@ -83,7 +83,7 @@ class BookingListSerializer(serializers.ModelSerializer):
             'customer_id', 'customer_name', 
             'provider_id', 'provider_name',
             'status', 'status_display', 'booking_date', 'booking_time', 'created_at',
-            'description', 'provider_notes', 'scheduled_date'
+            'booking_notes'
         ]
 
 
@@ -124,7 +124,7 @@ class BookingStatusUpdateSerializer(serializers.ModelSerializer):
         valid_transitions = {
             'pending': ['accepted', 'rejected', 'canceled_by_customer'],
             'negotiating': ['accepted', 'rejected', 'canceled_by_customer', 'canceled_by_provider'],
-            'accepted': ['in_progress', 'canceled_by_customer', 'canceled_by_provider'],
+            'accepted': ['in_progress', 'completed', 'canceled_by_customer', 'canceled_by_provider'],
             'in_progress': ['completed', 'canceled_by_provider'],
             'completed': [],  # Estado final
             'canceled_by_customer': [],  # Estado final

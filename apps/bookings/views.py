@@ -168,14 +168,19 @@ def booking_accept(request, booking_id):
         user_id = request.jwt_user_id
         booking = get_object_or_404(Booking, id=booking_id)
         
+        print(f"DEBUG: booking_accept called for booking_id={booking_id}, user_id={user_id}")
+        print(f"DEBUG: booking.provider_id={booking.provider_id}, booking.status={booking.status}")
+
         # Solo el proveedor puede aceptar
         if user_id != booking.provider_id:
+            print("DEBUG: Permission denied - user is not provider")
             return Response(
                 {'error': 'Solo el proveedor puede aceptar la solicitud'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         if booking.status != 'pending':
+            print(f"DEBUG: Invalid status - {booking.status}")
             return Response(
                 {'error': 'Solo se pueden aceptar solicitudes pendientes'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -286,16 +291,21 @@ def booking_complete(request, booking_id):
         user_id = request.jwt_user_id
         booking = get_object_or_404(Booking, id=booking_id)
         
+        print(f"DEBUG: booking_complete called for booking_id={booking_id}, user_id={user_id}")
+        print(f"DEBUG: booking.provider_id={booking.provider_id}, booking.status={booking.status}")
+
         # Solo el proveedor puede completar
         if user_id != booking.provider_id:
+            print("DEBUG: Permission denied - user is not provider")
             return Response(
                 {'error': 'Solo el proveedor puede completar el servicio'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if booking.status != 'in_progress':
+        if booking.status not in ['accepted', 'in_progress']:
+            print(f"DEBUG: Invalid status - {booking.status}")
             return Response(
-                {'error': 'Solo se pueden completar servicios en progreso'},
+                {'error': 'Solo se pueden completar servicios aceptados o en progreso'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
