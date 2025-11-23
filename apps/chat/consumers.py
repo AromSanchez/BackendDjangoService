@@ -234,11 +234,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         Crear nuevo mensaje
         """
-        return Message.objects.create(
-            conversation=conversation,
-            sender_id=self.user.id,
-            content=content
         )
+        
+        # Actualizar timestamp de la conversación
+        conversation.last_message_at = timezone.now()
+        await database_sync_to_async(conversation.save)()
+        
+        return message
 
     @database_sync_to_async
     def serialize_message(self, message):

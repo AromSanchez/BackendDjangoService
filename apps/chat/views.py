@@ -690,6 +690,13 @@ def create_or_get_conversation_by_service(request, service_id):
         if existing_booking and hasattr(existing_booking, 'conversation'):
             # Ya existe una conversación
             conversation = existing_booking.conversation
+            
+            # Reactivar conversación para AMBOS participantes (cliente y proveedor)
+            # si alguno la había eliminado
+            participants = conversation.participants.filter(deleted_at__isnull=False)
+            for participant in participants:
+                participant.deleted_at = None
+                participant.save()
         else:
             # Crear nuevo booking y conversación
             booking = Booking.objects.create(
