@@ -85,22 +85,17 @@ def user_profile_public(request, user_id):
         
         try:
             profile = UserProfile.objects.get(user_id=user_id)
-            serializer = UserProfilePublicSerializer(profile)
-            return Response(serializer.data, status=status.HTTP_200_OK)
         except UserProfile.DoesNotExist:
             # Crear perfil básico si no existe
-            return Response({
-                'user': {
-                    'id': user.id,
-                    'full_name': user.full_name,
-                    'role': user.role,
-                    'created_at': user.created_at
-                },
-                'bio': '',
-                'city': '',
-                'country': 'Perú',
-                'created_at': user.created_at
-            }, status=status.HTTP_200_OK)
+            profile = UserProfile.objects.create(
+                user_id=user_id,
+                bio='',
+                city='',
+                country='Perú'
+            )
+            
+        serializer = UserProfilePublicSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Exception as e:
         return Response(

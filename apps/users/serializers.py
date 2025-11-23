@@ -103,12 +103,44 @@ class UserProfilePublicSerializer(serializers.ModelSerializer):
     """Serializer público para perfiles (sin configuraciones privadas)"""
     
     user = UserPublicSerializer(read_only=True)
+    completed_services_count = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
         fields = [
-            'user', 'bio', 'avatar_file_id', 'city', 'country', 'created_at'
+            'user', 'bio', 'avatar_file_id', 'city', 'country', 'created_at',
+            'completed_services_count', 'average_rating', 'total_reviews'
         ]
+
+    def get_completed_services_count(self, obj):
+        from apps.bookings.models import Booking
+        return Booking.objects.filter(
+            provider_id=obj.user_id,
+            status='completed'
+        ).count()
+
+    def get_average_rating(self, obj):
+        from apps.services.models import Service
+        # Solo considerar servicios que tienen reseñas
+        services = Service.objects.filter(
+            provider_id=obj.user_id, 
+            reviews_count__gt=0
+        )
+        
+        if not services.exists():
+            return 0.0
+        
+        total_rating = sum(s.rating_avg for s in services)
+        return round(total_rating / services.count(), 1)
+
+    def get_total_reviews(self, obj):
+        from apps.reviews.models import Review
+        return Review.objects.filter(
+            service__provider_id=obj.user_id,
+            is_visible=True
+        ).count()
 
 
 class UserListSerializer(serializers.ModelSerializer):
