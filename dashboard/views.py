@@ -168,7 +168,10 @@ def provider_stats(request):
         # Reviews
         reviews = Review.objects.filter(service__provider_id=user_id)
         total_reviews = reviews.count()
-        avg_rating = reviews.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
+        
+        # Rating promedio del proveedor (promedio de sus servicios con calificaciones)
+        # Se calcula en base al rating_avg de cada servicio que tenga reviews
+        avg_rating = services.filter(reviews_count__gt=0).aggregate(Avg('rating_avg'))['rating_avg__avg'] or 0
         
         # Ingresos (estimados)
         completed_bookings_qs = bookings.filter(status='completed')
