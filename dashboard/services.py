@@ -20,7 +20,7 @@ class DashboardService:
     @staticmethod
     def get_customer_data(user):
         """
-        Genera datos del dashboard para un CUSTOMER (versión simplificada)
+        Genera datos del dashboard para un CUSTOMER
         
         Args:
             user: Instancia del modelo User
@@ -28,48 +28,95 @@ class DashboardService:
         Returns:
             dict: Datos específicos para clientes
         """
-        # Datos básicos sin consultas complejas por ahora
-        return {
-            "estadisticas": {
-                'total_bookings': 0,
-                'pending_bookings': 0,
-                'completed_bookings': 0,
-                'total_spent': 0
-            },
-            "serviciosDestacados": [],
-            "misSolicitudes": [],
-            "ofertas_especiales": [
-                {
-                    "id": 1,
-                    "titulo": "20% OFF en servicios de hogar",
-                    "descripcion": "Descuento en todos los servicios de limpieza",
-                    "descuento": "20%",
-                    "valido_hasta": "2024-12-31"
+        try:
+            # Consultas reales para el dashboard del cliente
+            from datetime import datetime
+            
+            # Bookings del cliente
+            bookings = Booking.objects.filter(customer_id=user.id)
+            total_bookings = bookings.count()
+            pending_bookings = bookings.filter(status='pending').count()
+            completed_bookings = bookings.filter(status='completed').count()
+            rejected_bookings = bookings.filter(
+                status__in=['rejected', 'canceled_by_customer', 'canceled_by_provider']
+            ).count()
+            
+            # Gasto total (solo de bookings completados)
+            completed_bookings_qs = bookings.filter(status='completed')
+            total_spent = sum(
+                (booking.service_price if booking.service_price is not None else booking.service.price) 
+                for booking in completed_bookings_qs
+            )
+            
+            # Servicios destacados (servicios activos y publicados, limitados a 6)
+            featured_services = []
+            services = Service.objects.filter(
+                is_active=True, 
+                is_published=True
+            ).order_by('-rating_avg', '-created_at')[:6]
+            
+            for service in services:
+                featured_services.append({
+                    'id': service.id,
+                    'name': service.title,
+                    'description': service.description,
+                    'price': float(service.price),
+                    'average_rating': float(service.rating_avg or 0),
+                })
+            
+            # Mis solicitudes recientes (limitado a 5)
+            recent_requests = []
+            for booking in bookings.order_by('-created_at')[:5]:
+                recent_requests.append({
+                    'id': booking.id,
+                    'service_name': booking.service.title,
+                    'provider_name': booking.provider.full_name if booking.provider else "Proveedor",
+                    'status': booking.status,
+                    'created_at': booking.created_at
+                })
+            
+            # Solicitudes rechazadas (limitado a 5)
+            rejected_requests = []
+            rejected_bookings_qs = bookings.filter(
+                status__in=['rejected', 'canceled_by_customer', 'canceled_by_provider']
+            ).order_by('-created_at')[:5]
+            
+            for booking in rejected_bookings_qs:
+                rejected_requests.append({
+                    'id': booking.id,
+                    'service_name': booking.service.title,
+                    'provider_name': booking.provider.full_name if booking.provider else "Proveedor",
+                    'status': booking.status,
+                    'created_at': booking.created_at,
+                    'cancellation_reason': booking.cancellation_reason
+                })
+            
+            return {
+                "estadisticas": {
+                    'total_bookings': total_bookings,
+                    'pending_bookings': pending_bookings,
+                    'completed_bookings': completed_bookings,
+                    'rejected_bookings': rejected_bookings,
+                    'total_spent': float(total_spent)
                 },
-                {
-                    "id": 2,
-                    "titulo": "Primera consulta gratis",
-                    "descripcion": "Para nuevos clientes en servicios técnicos",
-                    "descuento": "100%",
-                    "valido_hasta": "2024-11-30"
-                }
-            ],
-            "mis_pedidos_recientes": [
-                {
-                    "id": 101,
-                    "servicio": "Limpieza de hogar",
-                    "fecha": "2024-11-01",
-                    "estado": "Completado",
-                    "total": 50.00
-                }
-            ],
-            "estadisticas": {
-                "pedidos_totales": 5,
-                "pedidos_pendientes": 1,
-                "pedidos_completados": 4,
-                "gasto_total": 350.00
+                "serviciosDestacados": featured_services,
+                "misSolicitudes": recent_requests,
+                "solicitudesRechazadas": rejected_requests
             }
-        }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"ERROR CUSTOMER DATA: {str(e)}")
+            return {
+                "estadisticas": {
+                    'total_bookings': 0,
+                    'pending_bookings': 0,
+                    'completed_bookings': 0,
+                    'total_spent': 0
+                },
+                "serviciosDestacados": [],
+                "misSolicitudes": []
+            }
     
     @staticmethod
     def get_provider_data(user):
