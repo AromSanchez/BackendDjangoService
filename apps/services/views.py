@@ -55,10 +55,29 @@ def services_list_create(request):
                 )
 
             services = services.order_by('-created_at')
-            serializer = ServiceSerializer(services, many=True)
+            
+            # Paginación
+            page = int(request.GET.get('page', 1))
+            page_size = 9
+            total_count = services.count()
+            total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+            
+            # Calcular índices de paginación
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            
+            # Obtener servicios de la página actual
+            paginated_services = services[start_index:end_index]
+            
+            serializer = ServiceSerializer(paginated_services, many=True)
             return Response({
                 'services': serializer.data,
-                'count': services.count()
+                'count': total_count,
+                'total_pages': total_pages,
+                'current_page': page,
+                'page_size': page_size,
+                'has_next': page < total_pages,
+                'has_previous': page > 1
             }, status=status.HTTP_200_OK)
         
         elif request.method == 'POST':
@@ -186,13 +205,37 @@ def services_public_list(request):
         # Ordenar por rating y fecha
         services = services.order_by('-rating_avg', '-created_at')
         
+        # Paginación
+        page = int(request.GET.get('page', 1))
+        page_size = 9
+        total_count = services.count()
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        
+        # Calcular índices de paginación
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+        
+        # Obtener servicios de la página actual
+        paginated_services = services[start_index:end_index]
+        
         # Use ServiceListSerializer with context for is_favorite
         from .serializers import ServiceListSerializer
-        serializer = ServiceListSerializer(services, many=True, context={'request': request})
-        return Response({
+        serializer = ServiceListSerializer(paginated_services, many=True, context={'request': request})
+        
+        response_data = {
             'services': serializer.data,
-            'count': services.count()
-        }, status=status.HTTP_200_OK)
+            'count': total_count,
+            'total_pages': total_pages,
+            'current_page': page,
+            'page_size': page_size,
+            'has_next': page < total_pages,
+            'has_previous': page > 1
+        }
+        
+        # Debug log
+        print(f"📊 Pagination Response: total={total_count}, pages={total_pages}, current={page}, services_returned={len(serializer.data)}")
+        
+        return Response(response_data, status=status.HTTP_200_OK)
         
     except Exception as e:
         return Response(
