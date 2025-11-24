@@ -16,6 +16,8 @@ urlpatterns = [
     path('avatar/', views.user_upload_avatar, name='user_upload_avatar'),
     path('notifications/', views.user_update_notifications, name='user_update_notifications'),
     path('activity/', views.user_activity_summary, name='user_activity_summary'),
+    path('update-name/', views.update_full_name, name='update_full_name'),
+    path('update-password/', views.update_password, name='update_password'),
     
     # Admin endpoints
     path('admin/', views.admin_users_list, name='admin_users_list'),

@@ -124,6 +124,108 @@ def user_info(request):
         )
 
 
+@api_view(['PUT'])
+@jwt_required_drf
+def update_full_name(request):
+    """
+    Actualiza el nombre completo del usuario (solo LOCAL auth)
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea usuario LOCAL
+        if user.auth_provider != 'LOCAL':
+            return Response(
+                {'error': 'Solo usuarios con autenticación local pueden cambiar su nombre'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        full_name = request.data.get('full_name', '').strip()
+        
+        if not full_name:
+            return Response(
+                {'error': 'El nombre completo es requerido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(full_name) < 3:
+            return Response(
+                {'error': 'El nombre debe tener al menos 3 caracteres'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user.full_name = full_name
+        user.save()
+        
+        return Response(
+            {'message': 'Nombre actualizado correctamente', 'full_name': full_name},
+            status=status.HTTP_200_OK
+        )
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PUT'])
+@jwt_required_drf
+def update_password(request):
+    """
+    Actualiza la contraseña del usuario (solo LOCAL auth)
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea usuario LOCAL
+        if user.auth_provider != 'LOCAL':
+            return Response(
+                {'error': 'Solo usuarios con autenticación local pueden cambiar su contraseña'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        current_password = request.data.get('current_password', '')
+        new_password = request.data.get('new_password', '')
+        
+        if not current_password or not new_password:
+            return Response(
+                {'error': 'Se requiere la contraseña actual y la nueva contraseña'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar contraseña actual
+        if not user.check_password(current_password):
+            return Response(
+                {'error': 'La contraseña actual es incorrecta'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar nueva contraseña
+        if len(new_password) < 8:
+            return Response(
+                {'error': 'La nueva contraseña debe tener al menos 8 caracteres'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Actualizar contraseña
+        user.set_password(new_password)
+        user.save()
+        
+        return Response(
+            {'message': 'Contraseña actualizada correctamente'},
+            status=status.HTTP_200_OK
+        )
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 # ADMIN ENDPOINTS
 
 @api_view(['GET'])
