@@ -53,6 +53,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'user_id', 'created_at', 'updated_at']
     
+    def to_representation(self, instance):
+        """Include phone_number in the user object"""
+        representation = super().to_representation(instance)
+        if representation.get('user') and instance.user:
+            representation['user']['phone_number'] = instance.user.phone_number
+        return representation
+    
     def create(self, validated_data):
         """Crear un nuevo perfil de usuario"""
         return UserProfile.objects.create(**validated_data)
@@ -85,11 +92,14 @@ class UserProfileCreateSerializer(serializers.ModelSerializer):
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     """Serializer para actualizar perfiles de usuario"""
     
+    phone_number = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = UserProfile
         fields = [
             'bio', 'avatar_file_id', 'city', 'country', 
-            'notification_email', 'notification_push'
+            'notification_email', 'notification_push',
+            'phone_number'
         ]
     
     def validate_bio(self, value):
@@ -97,6 +107,34 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         if value and len(value) > 500:
             raise serializers.ValidationError("La biografía no puede exceder 500 caracteres")
         return value
+
+    def update(self, instance, validated_data):
+        phone_number = validated_data.pop('phone_number', None)
+        
+        # Update UserProfile fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+            
+        # Sanitize UserProfile boolean fields if they are bytes
+        for field in ['notification_email', 'notification_push']:
+            val = getattr(instance, field)
+            if isinstance(val, bytes):
+                setattr(instance, field, val == b'\x01')
+                
+        instance.save()
+
+        # Update User phone_number if provided
+        if phone_number:
+            user = instance.user
+            user.phone_number = phone_number
+            
+            # Sanitize User boolean fields if they are bytes (fix for managed=False models)
+            if isinstance(user.is_active, bytes):
+                user.is_active = user.is_active == b'\x01'
+                
+            user.save()
+            
+        return instance
 
 
 class UserProfilePublicSerializer(serializers.ModelSerializer):
