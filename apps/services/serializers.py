@@ -40,6 +40,8 @@ class ServiceSerializer(serializers.ModelSerializer):
     average_rating = serializers.DecimalField(source='rating_avg', max_digits=3, decimal_places=2, read_only=True)
     status = serializers.SerializerMethodField()
     is_favorite = serializers.SerializerMethodField()
+    requests_count = serializers.SerializerMethodField()
+    completed_count = serializers.SerializerMethodField()
     
     # Campos adicionales del frontend (opcionales)
     location = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -61,6 +63,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             'is_published', 'is_active', 'status', 'created_at', 'updated_at',
             'reviews_count', 'average_rating', 'favorites_count',
             'views_count', 'bookings_count', 'images', 'is_favorite',
+            'requests_count', 'completed_count',
             # Campos adicionales del frontend
             'location', 'duration_hours', 'requirements', 'terms_conditions', 'image_file_ids'
         ]
@@ -100,6 +103,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             return "INACTIVE"
         return "ACTIVE"
     
+    
     def get_is_favorite(self, obj):
         """Check if service is favorited by current user"""
         request = self.context.get('request')
@@ -110,6 +114,16 @@ class ServiceSerializer(serializers.ModelSerializer):
                 service=obj
             ).exists()
         return False
+    
+    def get_requests_count(self, obj):
+        """Get total number of bookings/requests for this service"""
+        from apps.bookings.models import Booking
+        return Booking.objects.filter(service_id=obj.id).count()
+    
+    def get_completed_count(self, obj):
+        """Get number of completed bookings for this service"""
+        from apps.bookings.models import Booking
+        return Booking.objects.filter(service_id=obj.id, status='completed').count()
     
     def create(self, validated_data):
         """Crear un nuevo servicio"""
