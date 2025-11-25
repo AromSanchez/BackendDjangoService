@@ -178,7 +178,7 @@ CORS_ALLOW_CREDENTIALS = True
 # ============================================
 # SPRING BOOT INTEGRATION
 # ============================================
-SPRINGBOOT_API_URL = 'http://localhost:8080/api'
+SPRINGBOOT_API_URL = 'https://conectaya-springboot-backend.onrender.com/api'
 INTERNAL_API_SECRET = 'change-this-secret-key'
 
 # ============================================
