@@ -9,10 +9,38 @@ from apps.users.models import User
 
 class CategorySerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
+    services_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'icon', 'is_active']
+        fields = ['id', 'name', 'slug', 'description', 'icon', 'is_active', 'order', 'created_at', 'services_count']
+        read_only_fields = ['slug', 'created_at']
+    
+    def get_services_count(self, obj):
+        """Contar servicios asociados a esta categoría"""
+        return obj.services.count()
+
+
+class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para crear/actualizar categorías"""
+    
+    class Meta:
+        model = Category
+        fields = ['name', 'description', 'icon', 'is_active', 'order']
+    
+    def validate_name(self, value):
+        """Validar que el nombre sea único"""
+        instance = self.instance
+        if instance:
+            # Actualización: verificar que no exista otro con el mismo nombre
+            if Category.objects.exclude(pk=instance.pk).filter(name__iexact=value).exists():
+                raise serializers.ValidationError("Ya existe una categoría con este nombre")
+        else:
+            # Creación: verificar que no exista
+            if Category.objects.filter(name__iexact=value).exists():
+                raise serializers.ValidationError("Ya existe una categoría con este nombre")
+        return value
+
 
 
 class ServiceImageSerializer(serializers.ModelSerializer):

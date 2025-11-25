@@ -262,3 +262,345 @@ def categories_list(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# ============= ADMIN CATEGORY MANAGEMENT =============
+
+@api_view(['GET', 'POST'])
+@jwt_required_drf
+def admin_categories_list_create(request):
+    """
+    GET: Lista todas las categorías (admin)
+    POST: Crea una nueva categoría (admin)
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea admin
+        if user.role != 'ADMIN':
+            return Response(
+                {'error': 'No tienes permisos para gestionar categorías'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if request.method == 'GET':
+            # Filtros
+            search = request.GET.get('search', '')
+            status_filter = request.GET.get('status', '')
+            
+            categories = Category.objects.all()
+            
+            if search:
+                categories = categories.filter(
+                    Q(name__icontains=search) |
+                    Q(description__icontains=search)
+                )
+            
+            if status_filter:
+                if status_filter.lower() == 'active':
+                    categories = categories.filter(is_active=True)
+                elif status_filter.lower() == 'inactive':
+                    categories = categories.filter(is_active=False)
+            
+            categories = categories.order_by('order', 'name')
+            
+            # Paginación
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 15))
+            total_count = categories.count()
+            total_pages = (total_count + page_size - 1) // page_size
+            
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            
+            paginated_categories = categories[start_index:end_index]
+            
+            serializer = CategorySerializer(paginated_categories, many=True)
+            return Response({
+                'results': serializer.data,
+                'count': total_count,
+                'total_pages': total_pages,
+                'current_page': page,
+                'page_size': page_size
+            }, status=status.HTTP_200_OK)
+        
+        elif request.method == 'POST':
+            from .serializers import CategoryCreateUpdateSerializer
+            serializer = CategoryCreateUpdateSerializer(data=request.data)
+            if serializer.is_valid():
+                category = serializer.save()
+                return Response(
+                    CategorySerializer(category).data,
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@jwt_required_drf
+def admin_category_detail(request, category_id):
+    """
+    GET: Obtiene detalles de una categoría
+    PUT: Actualiza una categoría
+    DELETE: Elimina una categoría
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea admin
+        if user.role != 'ADMIN':
+            return Response(
+                {'error': 'No tienes permisos para gestionar categorías'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        category = get_object_or_404(Category, id=category_id)
+        
+        if request.method == 'GET':
+            serializer = CategorySerializer(category)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        elif request.method == 'PUT':
+            from .serializers import CategoryCreateUpdateSerializer
+            serializer = CategoryCreateUpdateSerializer(category, data=request.data, partial=True)
+            if serializer.is_valid():
+                category = serializer.save()
+                return Response(
+                    CategorySerializer(category).data,
+                    status=status.HTTP_200_OK
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        elif request.method == 'DELETE':
+            # Verificar si tiene servicios asociados
+            services_count = category.services.count()
+            if services_count > 0:
+                return Response(
+                    {'error': f'No se puede eliminar la categoría porque tiene {services_count} servicio(s) asociado(s)'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            category.delete()
+            return Response(
+                {'message': 'Categoría eliminada correctamente'},
+                status=status.HTTP_204_NO_CONTENT
+            )
+    
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PATCH'])
+@jwt_required_drf
+def admin_category_toggle_status(request, category_id):
+    """
+    Activa o desactiva una categoría
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea admin
+        if user.role != 'ADMIN':
+            return Response(
+                {'error': 'No tienes permisos para gestionar categorías'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        category = get_object_or_404(Category, id=category_id)
+        category.is_active = not category.is_active
+        category.save()
+        
+        return Response(
+            CategorySerializer(category).data,
+            status=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+
+# ============= ADMIN CATEGORY MANAGEMENT =============
+
+@api_view(['GET', 'POST'])
+@jwt_required_drf
+def admin_categories_list_create(request):
+    """
+    GET: Lista todas las categorías (admin)
+    POST: Crea una nueva categoría (admin)
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea admin
+        if user.role != 'ADMIN':
+            return Response(
+                {'error': 'No tienes permisos para gestionar categorías'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if request.method == 'GET':
+            # Filtros
+            search = request.GET.get('search', '')
+            status_filter = request.GET.get('status', '')
+            
+            categories = Category.objects.all()
+            
+            if search:
+                categories = categories.filter(
+                    Q(name__icontains=search) |
+                    Q(description__icontains=search)
+                )
+            
+            if status_filter:
+                if status_filter.lower() == 'active':
+                    categories = categories.filter(is_active=True)
+                elif status_filter.lower() == 'inactive':
+                    categories = categories.filter(is_active=False)
+            
+            categories = categories.order_by('order', 'name')
+            
+            # Paginación
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 15))
+            total_count = categories.count()
+            total_pages = (total_count + page_size - 1) // page_size
+            
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            
+            paginated_categories = categories[start_index:end_index]
+            
+            serializer = CategorySerializer(paginated_categories, many=True)
+            return Response({
+                'results': serializer.data,
+                'count': total_count,
+                'total_pages': total_pages,
+                'current_page': page,
+                'page_size': page_size
+            }, status=status.HTTP_200_OK)
+        
+        elif request.method == 'POST':
+            from .serializers import CategoryCreateUpdateSerializer
+            serializer = CategoryCreateUpdateSerializer(data=request.data)
+            if serializer.is_valid():
+                category = serializer.save()
+                return Response(
+                    CategorySerializer(category).data,
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@jwt_required_drf
+def admin_category_detail(request, category_id):
+    """
+    GET: Obtiene detalles de una categoría
+    PUT: Actualiza una categoría
+    DELETE: Elimina una categoría
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea admin
+        if user.role != 'ADMIN':
+            return Response(
+                {'error': 'No tienes permisos para gestionar categorías'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        category = get_object_or_404(Category, id=category_id)
+        
+        if request.method == 'GET':
+            serializer = CategorySerializer(category)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        elif request.method == 'PUT':
+            from .serializers import CategoryCreateUpdateSerializer
+            serializer = CategoryCreateUpdateSerializer(category, data=request.data, partial=True)
+            if serializer.is_valid():
+                category = serializer.save()
+                return Response(
+                    CategorySerializer(category).data,
+                    status=status.HTTP_200_OK
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        elif request.method == 'DELETE':
+            # Verificar si tiene servicios asociados
+            services_count = category.services.count()
+            if services_count > 0:
+                return Response(
+                    {'error': f'No se puede eliminar la categoría porque tiene {services_count} servicio(s) asociado(s)'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            category.delete()
+            return Response(
+                {'message': 'Categoría eliminada correctamente'},
+                status=status.HTTP_204_NO_CONTENT
+            )
+    
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PATCH'])
+@jwt_required_drf
+def admin_category_toggle_status(request, category_id):
+    """
+    Activa o desactiva una categoría
+    """
+    try:
+        user_id = request.jwt_user_id
+        user = get_object_or_404(User, id=user_id)
+        
+        # Verificar que sea admin
+        if user.role != 'ADMIN':
+            return Response(
+                {'error': 'No tienes permisos para gestionar categorías'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        category = get_object_or_404(Category, id=category_id)
+        category.is_active = not category.is_active
+        category.save()
+        
+        return Response(
+            CategorySerializer(category).data,
+            status=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+

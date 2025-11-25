@@ -14,6 +14,12 @@ urlpatterns = [
     # Servicios públicos (para clientes)
     path('public/', views.services_public_list, name='services_public_list'),
     
-    # Categorías
+    # Categorías públicas
     path('categories/', views.categories_list, name='categories_list'),
+    
+    # Admin - Gestión de categorías
+    path('admin/categories/', views.admin_categories_list_create, name='admin_categories_list_create'),
+    path('admin/categories/<int:category_id>/', views.admin_category_detail, name='admin_category_detail'),
+    path('admin/categories/<int:category_id>/toggle-status/', views.admin_category_toggle_status, name='admin_category_toggle_status'),
 ]
+
