@@ -365,16 +365,22 @@ def admin_stats(request):
         from apps.reviews.models import Review
         from apps.reports.models import Report
         from datetime import datetime, timedelta
-        from django.db.models import Count
+        from django.db.models import Count, Sum, F
+        from django.db.models.functions import TruncMonth
+        from decimal import Decimal
         
         # Usuarios
         total_users = User.objects.count()
         total_customers = User.objects.filter(role='CUSTOMER').count()
         total_providers = User.objects.filter(role='PROVIDER').count()
-        pending_providers = User.objects.filter(
-            role='PROVIDER', 
-            provider_status='PENDING'
-        ).count()
+        # Verificar si existe el campo provider_status, si no, usar un valor por defecto
+        try:
+            pending_providers = User.objects.filter(
+                role='PROVIDER', 
+                provider_status='PENDING'
+            ).count()
+        except Exception:
+            pending_providers = 0
         
         # Servicios
         total_services = Service.objects.count()
@@ -388,53 +394,84 @@ def admin_stats(request):
         # Reviews y reportes
         total_reviews = Review.objects.count()
         flagged_reviews = Review.objects.filter(is_flagged=True).count()
-        open_reports = Report.objects.filter(status='open').count()
+        try:
+            open_reports = Report.objects.filter(status='open').count()
+        except Exception:
+            open_reports = 0
         
         # Ingresos de la plataforma (estimado - comisión del 10%)
-        completed_bookings_qs = Booking.objects.filter(status='completed').select_related('service')
-        total_revenue = sum(
-            booking.service.price for booking in completed_bookings_qs if booking.service
-        )
-        platform_revenue = total_revenue * 0.10  # 10% de comisión
+        # Usar aggregate para mejor rendimiento y evitar errores de N+1
+        total_revenue_agg = Booking.objects.filter(
+            status='completed'
+        ).aggregate(
+            total=Sum('service__price')
+        )['total'] or 0
+        
+        platform_revenue = float(total_revenue_agg) * 0.10
 
         # Tendencias de crecimiento (últimos 6 meses)
         months_data = []
         services_growth = []
-        for i in range(6):
-            month_start = (datetime.now().replace(day=1) - timedelta(days=30*i))
-            month_end = month_start.replace(day=28) + timedelta(days=4)
+        
+        today = datetime.now()
+        
+        for i in range(5, -1, -1): # De 5 a 0 para ir del pasado al presente
+            # Calcular inicio y fin del mes
+            # Mes actual menos i meses
+            target_date = today.replace(day=1) 
+            # Ajustar mes y año
+            year = target_date.year
+            month = target_date.month - i
             
+            while month <= 0:
+                month += 12
+                year -= 1
+            
+            month_start = datetime(year, month, 1)
+            
+            # Fin del mes (inicio del siguiente mes - 1 segundo, o simplemente < inicio siguiente mes)
+            if month == 12:
+                next_month_start = datetime(year + 1, 1, 1)
+            else:
+                next_month_start = datetime(year, month + 1, 1)
+            
+            month_label = month_start.strftime('%Y-%m')
+            
+            # Consultas por mes
             month_users = User.objects.filter(
                 created_at__gte=month_start,
-                created_at__lt=month_end
+                created_at__lt=next_month_start
             ).count()
             
             month_bookings = Booking.objects.filter(
                 created_at__gte=month_start,
-                created_at__lt=month_end
+                created_at__lt=next_month_start
             ).count()
             
-            month_booking_qs = Booking.objects.filter(
-                    created_at__gte=month_start,
-                    created_at__lt=month_end,
-                    status='completed'
-                ).select_related('service')
-            month_revenue = sum(booking.service.price for booking in month_booking_qs if booking.service) * 0.10
+            month_revenue_agg = Booking.objects.filter(
+                created_at__gte=month_start,
+                created_at__lt=next_month_start,
+                status='completed'
+            ).aggregate(
+                total=Sum('service__price')
+            )['total'] or 0
+            
+            month_revenue = float(month_revenue_agg) * 0.10
 
             month_services = Service.objects.filter(
                 created_at__gte=month_start,
-                created_at__lt=month_end,
+                created_at__lt=next_month_start,
                 is_published=True
             ).count()
             
             months_data.append({
-                'month': month_start.strftime('%Y-%m'),
+                'month': month_label,
                 'users': month_users,
                 'bookings': month_bookings,
                 'revenue': float(month_revenue)
             })
             services_growth.append({
-                'month': month_start.strftime('%Y-%m'),
+                'month': month_label,
                 'count': month_services
             })
 
@@ -444,7 +481,7 @@ def admin_stats(request):
             prev = series[-2].get(key) or 0
             current = series[-1].get(key) or 0
             if prev == 0:
-                return 0
+                return 100 if current > 0 else 0
             return round(((current - prev) / prev) * 100, 1)
 
         users_trend = calculate_trend(months_data, 'users')
@@ -480,7 +517,10 @@ def admin_stats(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Exception as e:
+        import traceback
+        print(f"ERROR ADMIN STATS: {str(e)}")
+        traceback.print_exc()
         return Response(
-            {'error': str(e)},
+            {'error': str(e), 'trace': traceback.format_exc()},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
