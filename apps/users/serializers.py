@@ -107,6 +107,35 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         if value and len(value) > 500:
             raise serializers.ValidationError("La biografía no puede exceder 500 caracteres")
         return value
+    
+    def validate_phone_number(self, value):
+        """Validar formato de número de teléfono"""
+        # Allow empty strings and None
+        if not value or value.strip() == '':
+            return value
+            
+        import re
+        # Eliminar espacios y caracteres especiales comunes
+        cleaned = re.sub(r'[\s\-\(\)\+]', '', value)
+        # Verificar que solo contenga dígitos
+        if not cleaned.isdigit():
+            raise serializers.ValidationError("El número de teléfono solo debe contener dígitos")
+        # Verificar longitud razonable (7-15 dígitos)
+        if len(cleaned) < 7 or len(cleaned) > 15:
+            raise serializers.ValidationError("El número de teléfono debe tener entre 7 y 15 dígitos")
+        return value
+    
+    def validate_city(self, value):
+        """Validar longitud de ciudad"""
+        if value and len(value) > 100:
+            raise serializers.ValidationError("El nombre de la ciudad no puede exceder 100 caracteres")
+        return value
+    
+    def validate_country(self, value):
+        """Validar longitud de país"""
+        if value and len(value) > 100:
+            raise serializers.ValidationError("El nombre del país no puede exceder 100 caracteres")
+        return value
 
     def update(self, instance, validated_data):
         phone_number = validated_data.pop('phone_number', None)
