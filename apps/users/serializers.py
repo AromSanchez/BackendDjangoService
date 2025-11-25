@@ -151,6 +151,13 @@ class UserProfilePublicSerializer(serializers.ModelSerializer):
             'user', 'bio', 'avatar_file_id', 'city', 'country', 'created_at',
             'completed_services_count', 'average_rating', 'total_reviews'
         ]
+    
+    def to_representation(self, instance):
+        """Include phone_number in the user object"""
+        representation = super().to_representation(instance)
+        if representation.get('user') and instance.user:
+            representation['user']['phone_number'] = instance.user.phone_number
+        return representation
 
     def get_completed_services_count(self, obj):
         from apps.bookings.models import Booking
