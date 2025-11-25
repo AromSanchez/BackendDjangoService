@@ -15,12 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ============================================
-# PyMySQL Configuration (alternativa a mysqlclient)
-# ============================================
-import pymysql
-pymysql.install_as_MySQLdb()
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -29,9 +23,9 @@ pymysql.install_as_MySQLdb()
 SECRET_KEY = 'django-insecure-5@tonl(lfz%elh-%#us03i=%n7fecvsyshx1wogfm4!%sy+(y#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ['*']
 
 
 # ============================================
@@ -106,12 +100,15 @@ WSGI_APPLICATION = 'conectaya.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'conecta_ya',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'conectaya_db',
+        'USER': 'conectaya',
+        'PASSWORD': 'h4HV3lx2E0A5WX3A3R0uajwOWC2YVxZj',
+        'HOST': 'dpg-d4iinjngi27c739k98e0-a',
+        'PORT': '5432',
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
     }
 }
 
