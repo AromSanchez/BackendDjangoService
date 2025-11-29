@@ -10,9 +10,20 @@ from apps.users.models import User
 class UserBasicSerializer(serializers.ModelSerializer):
     """Serializer básico para usuarios en chat"""
     
+    avatar_file_id = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email', 'role']
+        fields = ['id', 'full_name', 'email', 'role', 'avatar_file_id']
+    
+    def get_avatar_file_id(self, obj):
+        """Obtener avatar_file_id desde UserProfile"""
+        from apps.users.models import UserProfile
+        try:
+            profile = UserProfile.objects.get(user_id=obj.id)
+            return profile.avatar_file_id
+        except UserProfile.DoesNotExist:
+            return None
 
 
 class BookingBasicSerializer(serializers.ModelSerializer):
