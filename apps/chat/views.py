@@ -648,8 +648,9 @@ def create_booking_from_chat(request, conversation_id):
             content=f'Solicitud de servicio enviada: {service.title} - S/{service.price}'
         )
         
-        # Actualizar timestamp de la conversación
+        # Actualizar timestamp de la conversación y vincular booking
         conversation.last_message_at = timezone.now()
+        conversation.booking = booking
         conversation.save()
         
         # Incrementar contador de no leídos para el proveedor y reactivar chat
