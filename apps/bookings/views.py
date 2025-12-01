@@ -190,6 +190,23 @@ def booking_accept(request, booking_id):
         booking.accepted_at = timezone.now()
         booking.save()
         
+        # Enviar mensaje al chat
+        try:
+            from apps.chat.models import Conversation, Message
+            conversation = Conversation.objects.filter(booking=booking).first()
+            if conversation:
+                Message.objects.create(
+                    conversation=conversation,
+                    sender_id=user_id,
+                    message_type='booking_action',
+                    booking_action='accepted',
+                    content='Solicitud aceptada. El servicio ha sido programado.'
+                )
+                conversation.last_message_at = timezone.now()
+                conversation.save()
+        except Exception as e:
+            print(f"Error sending chat message: {e}")
+        
         return Response(
             BookingSerializer(booking).data,
             status=status.HTTP_200_OK
@@ -229,6 +246,23 @@ def booking_reject(request, booking_id):
         booking.cancellation_reason = request.data.get('reason', '')
         booking.canceled_at = timezone.now()
         booking.save()
+        
+        # Enviar mensaje al chat
+        try:
+            from apps.chat.models import Conversation, Message
+            conversation = Conversation.objects.filter(booking=booking).first()
+            if conversation:
+                Message.objects.create(
+                    conversation=conversation,
+                    sender_id=user_id,
+                    message_type='booking_action',
+                    booking_action='rejected',
+                    content='Solicitud rechazada.'
+                )
+                conversation.last_message_at = timezone.now()
+                conversation.save()
+        except Exception as e:
+            print(f"Error sending chat message: {e}")
         
         return Response(
             BookingSerializer(booking).data,
