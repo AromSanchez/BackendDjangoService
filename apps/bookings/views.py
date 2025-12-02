@@ -473,10 +473,10 @@ def booking_cancel(request, booking_id):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Solo se puede cancelar si está accepted o in_progress
-        if booking.status not in ['accepted', 'in_progress']:
+        # Solo se puede cancelar si está pending, accepted o in_progress
+        if booking.status not in ['pending', 'accepted', 'in_progress']:
             return Response(
-                {'error': 'Solo se pueden cancelar servicios aceptados o en progreso'},
+                {'error': 'No se puede cancelar este servicio en su estado actual'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
