@@ -613,47 +613,4 @@ def bookings_stats(request):
         )
 
 
-@api_view(['POST'])
-@jwt_required_drf
-def booking_cancel(request, booking_id):
-    """
-    Cancelar booking (cliente o proveedor)
-    """
-    try:
-        user_id = request.jwt_user_id
-        booking = get_object_or_404(Booking, id=booking_id)
-        
-        # Verificar permisos
-        if user_id not in [booking.customer_id, booking.provider_id]:
-            return Response(
-                {'error': 'No tienes permisos para cancelar este booking'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Verificar estado
-        if booking.status not in ['pending', 'negotiating', 'accepted']:
-            return Response(
-                {'error': 'No se puede cancelar este booking en su estado actual'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Determinar quién cancela
-        if user_id == booking.customer_id:
-            booking.status = 'canceled_by_customer'
-        else:
-            booking.status = 'canceled_by_provider'
-        
-        booking.cancellation_reason = request.data.get('reason', '')
-        booking.canceled_at = timezone.now()
-        booking.save()
-        
-        return Response(
-            BookingSerializer(booking).data,
-            status=status.HTTP_200_OK
-        )
-        
-    except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+
