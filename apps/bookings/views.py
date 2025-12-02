@@ -7,6 +7,8 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from conectaya.authentication.decorators import jwt_required_drf
 from apps.users.models import User
@@ -16,6 +18,39 @@ from .serializers import (
     BookingSerializer, BookingListSerializer, BookingCreateSerializer,
     BookingStatusUpdateSerializer
 )
+
+
+def send_booking_message_to_websocket(conversation, message):
+    """
+    Envía un mensaje de booking a través de WebSocket a todos los participantes
+    """
+    try:
+        from apps.chat.serializers import MessageSerializer
+        
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            print("Channel layer not configured")
+            return
+        
+        # Serializar el mensaje
+        message_data = MessageSerializer(message).data
+        
+        # Obtener participantes de la conversación
+        participants = conversation.participants.all()
+        
+        # Enviar a cada participante
+        for participant in participants:
+            async_to_sync(channel_layer.group_send)(
+                f'user_{participant.user_id}',
+                {
+                    'type': 'new_message',
+                    'message': message_data
+                }
+            )
+        
+        print(f"Booking message sent via WebSocket to {len(participants)} participants")
+    except Exception as e:
+        print(f"Error sending booking message via WebSocket: {e}")
 
 
 @api_view(['GET', 'POST'])
@@ -195,7 +230,7 @@ def booking_accept(request, booking_id):
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
             if conversation:
-                Message.objects.create(
+                message = Message.objects.create(
                     conversation=conversation,
                     sender_id=user_id,
                     message_type='booking_action',
@@ -204,6 +239,9 @@ def booking_accept(request, booking_id):
                 )
                 conversation.last_message_at = timezone.now()
                 conversation.save()
+                
+                # Enviar por WebSocket en tiempo real
+                send_booking_message_to_websocket(conversation, message)
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
@@ -252,7 +290,7 @@ def booking_reject(request, booking_id):
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
             if conversation:
-                Message.objects.create(
+                message = Message.objects.create(
                     conversation=conversation,
                     sender_id=user_id,
                     message_type='booking_action',
@@ -261,6 +299,9 @@ def booking_reject(request, booking_id):
                 )
                 conversation.last_message_at = timezone.now()
                 conversation.save()
+                
+                # Enviar por WebSocket en tiempo real
+                send_booking_message_to_websocket(conversation, message)
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
@@ -308,7 +349,7 @@ def booking_start(request, booking_id):
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
             if conversation:
-                Message.objects.create(
+                message = Message.objects.create(
                     conversation=conversation,
                     sender_id=user_id,
                     message_type='booking_action',
@@ -317,6 +358,9 @@ def booking_start(request, booking_id):
                 )
                 conversation.last_message_at = timezone.now()
                 conversation.save()
+                
+                # Enviar por WebSocket en tiempo real
+                send_booking_message_to_websocket(conversation, message)
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
@@ -369,7 +413,7 @@ def booking_complete(request, booking_id):
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
             if conversation:
-                Message.objects.create(
+                message = Message.objects.create(
                     conversation=conversation,
                     sender_id=user_id,
                     message_type='booking_action',
@@ -378,6 +422,9 @@ def booking_complete(request, booking_id):
                 )
                 conversation.last_message_at = timezone.now()
                 conversation.save()
+                
+                # Enviar por WebSocket en tiempo real
+                send_booking_message_to_websocket(conversation, message)
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
