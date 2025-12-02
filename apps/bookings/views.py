@@ -303,6 +303,23 @@ def booking_start(request, booking_id):
         booking.in_progress_at = timezone.now()
         booking.save()
         
+        # Enviar mensaje al chat
+        try:
+            from apps.chat.models import Conversation, Message
+            conversation = Conversation.objects.filter(booking=booking).first()
+            if conversation:
+                Message.objects.create(
+                    conversation=conversation,
+                    sender_id=user_id,
+                    message_type='booking_action',
+                    booking_action='in_progress',
+                    content='Servicio iniciado. El proveedor ha comenzado el trabajo.'
+                )
+                conversation.last_message_at = timezone.now()
+                conversation.save()
+        except Exception as e:
+            print(f"Error sending chat message: {e}")
+        
         return Response(
             BookingSerializer(booking).data,
             status=status.HTTP_200_OK
@@ -346,6 +363,23 @@ def booking_complete(request, booking_id):
         booking.status = 'completed'
         booking.completed_at = timezone.now()
         booking.save()
+        
+        # Enviar mensaje al chat
+        try:
+            from apps.chat.models import Conversation, Message
+            conversation = Conversation.objects.filter(booking=booking).first()
+            if conversation:
+                Message.objects.create(
+                    conversation=conversation,
+                    sender_id=user_id,
+                    message_type='booking_action',
+                    booking_action='completed',
+                    content='Servicio completado. ¡Gracias por confiar en nosotros!'
+                )
+                conversation.last_message_at = timezone.now()
+                conversation.save()
+        except Exception as e:
+            print(f"Error sending chat message: {e}")
         
         # Incrementar ganancias del proveedor
         from apps.users.models import UserProfile
