@@ -280,7 +280,7 @@ def booking_reject(request, booking_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        booking.status = 'rejected'
+        booking.status = 'rejected_by_provider'
         booking.cancellation_reason = request.data.get('reason', '')
         booking.canceled_at = timezone.now()
         booking.save()
@@ -290,12 +290,13 @@ def booking_reject(request, booking_id):
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
             if conversation:
+                reason_text = f" Razón: {booking.cancellation_reason}" if booking.cancellation_reason else ""
                 message = Message.objects.create(
                     conversation=conversation,
                     sender_id=user_id,
                     message_type='booking_action',
                     booking_action='rejected',
-                    content='Solicitud rechazada.'
+                    content=f'Solicitud rechazada.{reason_text}'
                 )
                 conversation.last_message_at = timezone.now()
                 conversation.save()
@@ -442,6 +443,75 @@ def booking_complete(request, booking_id):
             price = booking.service_price or booking.service.price
             if price:
                 provider_profile.add_earnings(price)
+        
+        return Response(
+            BookingSerializer(booking).data,
+            status=status.HTTP_200_OK
+        )
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@jwt_required_drf
+def booking_cancel(request, booking_id):
+    """
+    Cancelar un booking (solo cliente, solo si está accepted o in_progress)
+    """
+    try:
+        user_id = request.jwt_user_id
+        booking = get_object_or_404(Booking, id=booking_id)
+        
+        # Solo el cliente puede cancelar
+        if user_id != booking.customer_id:
+            return Response(
+                {'error': 'Solo el cliente puede cancelar el servicio'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Solo se puede cancelar si está accepted o in_progress
+        if booking.status not in ['accepted', 'in_progress']:
+            return Response(
+                {'error': 'Solo se pueden cancelar servicios aceptados o en progreso'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Obtener razón (obligatoria)
+        cancellation_reason = request.data.get('reason', '').strip()
+        if not cancellation_reason:
+            return Response(
+                {'error': 'La razón de cancelación es obligatoria'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        booking.status = 'canceled'
+        booking.cancellation_reason = cancellation_reason
+        booking.canceled_at = timezone.now()
+        booking.save()
+        
+        # Enviar mensaje al chat
+        try:
+            from apps.chat.models import Conversation, Message
+            conversation = Conversation.objects.filter(booking=booking).first()
+            if conversation:
+                message = Message.objects.create(
+                    conversation=conversation,
+                    sender_id=user_id,
+                    message_type='booking_action',
+                    booking_action='canceled',
+                    content=f'Servicio cancelado por el cliente. Razón: {cancellation_reason}'
+                )
+                conversation.last_message_at = timezone.now()
+                conversation.save()
+                
+                # Enviar por WebSocket en tiempo real
+                send_booking_message_to_websocket(conversation, message)
+        except Exception as e:
+            print(f"Error sending chat message: {e}")
         
         return Response(
             BookingSerializer(booking).data,

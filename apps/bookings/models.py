@@ -16,9 +16,8 @@ class Booking(models.Model):
         ('accepted', 'Aceptado'),
         ('in_progress', 'En Progreso'),
         ('completed', 'Completado'),
-        ('canceled_by_customer', 'Cancelado por Cliente'),
-        ('canceled_by_provider', 'Cancelado por Proveedor'),
-        ('rejected', 'Rechazado'),
+        ('canceled', 'Cancelado por Cliente'),
+        ('rejected_by_provider', 'Rechazado por Proveedor'),
     ]
     
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='bookings')
