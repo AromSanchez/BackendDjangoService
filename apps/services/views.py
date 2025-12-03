@@ -604,3 +604,39 @@ def admin_category_toggle_status(request, category_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
+@api_view(['GET'])
+@jwt_required_drf
+def service_stats(request, service_id):
+    """
+    Obtiene estadísticas de un servicio específico
+    """
+    try:
+        from apps.bookings.models import Booking
+        
+        user_id = request.jwt_user_id
+        service = get_object_or_404(Service, id=service_id)
+        
+        # Verificar que sea el dueño del servicio
+        if service.provider_id != user_id:
+            return Response(
+                {'error': 'No tienes permisos para ver estadísticas de este servicio'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        total_requests = Booking.objects.filter(service=service).count()
+        completed_services = Booking.objects.filter(service=service, status='completed').count()
+        last_request = Booking.objects.filter(service=service).order_by('-created_at').first()
+        
+        return Response({
+            'total_requests': total_requests,
+            'completed_services': completed_services,
+            'average_rating': service.rating_avg,
+            'last_request_date': last_request.created_at if last_request else None
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

@@ -10,6 +10,7 @@ urlpatterns = [
     # Servicios del proveedor (CRUD protegido)
     path('', views.services_list_create, name='services_list_create'),
     path('<int:service_id>/', views.service_detail, name='service_detail'),
+    path('<int:service_id>/stats/', views.service_stats, name='service_stats'),
     
     # Servicios públicos (para clientes)
     path('public/', views.services_public_list, name='services_public_list'),
