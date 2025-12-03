@@ -22,6 +22,7 @@ class Conversation(models.Model):
     # ID del servicio sobre el que trata la conversación
     service_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     last_message_at = models.DateTimeField(null=True, blank=True)
+    is_closed = models.BooleanField(default=False)  # Chat cerrado (rechazado o completado)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

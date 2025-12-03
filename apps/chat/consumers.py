@@ -186,6 +186,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         }))
 
+    async def conversation_closed(self, event):
+        """
+        Enviar notificación de conversación cerrada al WebSocket
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'conversation_closed',
+            'data': event['conversation']
+        }))
+
     async def send_error(self, message):
         """
         Enviar mensaje de error al WebSocket

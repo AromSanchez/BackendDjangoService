@@ -131,9 +131,9 @@ class ConversationSerializer(serializers.ModelSerializer):
         model = Conversation
         fields = [
             'id', 'service_id', 'booking', 'booking_service_title', 'participants', 'last_message',
-            'last_message_at', 'created_at'
+            'last_message_at', 'is_closed', 'created_at'
         ]
-        read_only_fields = ['id', 'last_message_at', 'created_at']
+        read_only_fields = ['id', 'last_message_at', 'is_closed', 'created_at']
 
     def get_booking_service_title(self, obj):
         """Obtener título del servicio desde booking o service_id"""
@@ -165,7 +165,7 @@ class ConversationListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'service_id', 'booking', 'booking_service_title', 'booking_status', 
             'other_user', 'unread_count', 'last_message',
-            'last_message_at', 'created_at'
+            'last_message_at', 'is_closed', 'created_at'
         ]
     
     def get_booking_service_title(self, obj):

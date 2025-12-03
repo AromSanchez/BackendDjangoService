@@ -53,6 +53,39 @@ def send_booking_message_to_websocket(conversation, message):
         print(f"Error sending booking message via WebSocket: {e}")
 
 
+def send_conversation_closed_notification(conversation):
+    """
+    Envía notificación de cierre de conversación a través de WebSocket
+    """
+    try:
+        from apps.chat.serializers import ConversationSerializer
+        
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            print("Channel layer not configured")
+            return
+        
+        # Serializar la conversación
+        conversation_data = ConversationSerializer(conversation).data
+        
+        # Obtener participantes de la conversación
+        participants = conversation.participants.all()
+        
+        # Enviar a cada participante
+        for participant in participants:
+            async_to_sync(channel_layer.group_send)(
+                f'user_{participant.user_id}',
+                {
+                    'type': 'conversation_closed',
+                    'conversation': conversation_data
+                }
+            )
+        
+        print(f"Conversation closed notification sent to {len(participants)} participants")
+    except Exception as e:
+        print(f"Error sending conversation closed notification: {e}")
+
+
 @api_view(['GET', 'POST'])
 @jwt_required_drf
 def bookings_list_create(request):
@@ -285,7 +318,7 @@ def booking_reject(request, booking_id):
         booking.canceled_at = timezone.now()
         booking.save()
         
-        # Enviar mensaje al chat
+        # Enviar mensaje al chat y cerrar conversación
         try:
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
@@ -299,10 +332,14 @@ def booking_reject(request, booking_id):
                     content=f'Solicitud rechazada.{reason_text}'
                 )
                 conversation.last_message_at = timezone.now()
+                conversation.is_closed = True  # Cerrar conversación
                 conversation.save()
                 
                 # Enviar por WebSocket en tiempo real
                 send_booking_message_to_websocket(conversation, message)
+                
+                # Notificar cierre de conversación
+                send_conversation_closed_notification(conversation)
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
@@ -409,7 +446,7 @@ def booking_complete(request, booking_id):
         booking.completed_at = timezone.now()
         booking.save()
         
-        # Enviar mensaje al chat
+        # Enviar mensaje al chat y cerrar conversación
         try:
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
@@ -422,10 +459,14 @@ def booking_complete(request, booking_id):
                     content='Servicio completado. ¡Gracias por confiar en nosotros!'
                 )
                 conversation.last_message_at = timezone.now()
+                conversation.is_closed = True  # Cerrar conversación
                 conversation.save()
                 
                 # Enviar por WebSocket en tiempo real
                 send_booking_message_to_websocket(conversation, message)
+                
+                # Notificar cierre de conversación
+                send_conversation_closed_notification(conversation)
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
@@ -493,7 +534,7 @@ def booking_cancel(request, booking_id):
         booking.canceled_at = timezone.now()
         booking.save()
         
-        # Enviar mensaje al chat
+        # Enviar mensaje al chat y cerrar conversación
         try:
             from apps.chat.models import Conversation, Message
             conversation = Conversation.objects.filter(booking=booking).first()
@@ -506,10 +547,14 @@ def booking_cancel(request, booking_id):
                     content=f'Servicio cancelado por el cliente. Razón: {cancellation_reason}'
                 )
                 conversation.last_message_at = timezone.now()
+                conversation.is_closed = True  # Cerrar conversación
                 conversation.save()
                 
                 # Enviar por WebSocket en tiempo real
                 send_booking_message_to_websocket(conversation, message)
+                
+                # Notificar cierre de conversación
+                send_conversation_closed_notification(conversation)
         except Exception as e:
             print(f"Error sending chat message: {e}")
         

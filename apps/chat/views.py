@@ -143,6 +143,13 @@ def conversation_messages(request, conversation_id):
             }, status=status.HTTP_200_OK)
         
         elif request.method == 'POST':
+            # Verificar si la conversación está cerrada
+            if conversation.is_closed:
+                return Response(
+                    {'error': 'Esta conversación ha finalizado y no se pueden enviar más mensajes'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             # Enviar mensaje
             from datetime import timedelta
             data = request.data.copy()
