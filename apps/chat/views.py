@@ -663,6 +663,10 @@ def create_booking_from_chat(request, conversation_id):
                 other_participant.cleared_at = message.created_at - timedelta(seconds=1)
             other_participant.save()
         
+        # Enviar por WebSocket en tiempo real
+        from apps.bookings.views import send_booking_message_to_websocket
+        send_booking_message_to_websocket(conversation, message)
+        
         from apps.bookings.serializers import BookingSerializer
         return Response(
             BookingSerializer(booking).data,
