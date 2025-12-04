@@ -64,10 +64,14 @@ class NotificationViewSet(viewsets.ViewSet):
                 )
             
             # Crear o actualizar el token del dispositivo
+            # Crear o actualizar el token del dispositivo
+            # Si el token ya existe (incluso para otro usuario), lo actualizamos para este usuario
             device_token, created = DeviceToken.objects.update_or_create(
-                user_id=user_id,
                 token=fcm_token,
-                defaults={'device_type': device_type}
+                defaults={
+                    'user_id': user_id,
+                    'device_type': device_type
+                }
             )
             
             action_msg = "creado" if created else "actualizado"
