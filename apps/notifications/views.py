@@ -9,7 +9,7 @@ from .serializers import DeviceTokenSerializer
 class NotificationViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], url_path='register-token')
     def register_token(self, request):
         """
         Registrar token FCM del dispositivo
@@ -24,7 +24,7 @@ class NotificationViewSet(viewsets.ViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    @action(detail=False, methods=['delete'])
+    @action(detail=False, methods=['delete'], url_path='unregister-token')
     def unregister_token(self, request):
         """
         Eliminar token FCM del dispositivo
