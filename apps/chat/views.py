@@ -674,6 +674,22 @@ def create_booking_from_chat(request, conversation_id):
         from apps.bookings.views import send_booking_message_to_websocket
         send_booking_message_to_websocket(conversation, message)
         
+        # 🔥 Enviar notificación push al proveedor
+        try:
+            from apps.notifications.services.firebase_service import send_push_notification
+            send_push_notification(
+                user_id=booking.provider_id,
+                title="Nueva solicitud de servicio 🔔",
+                message=f"{user.first_name} {user.last_name} solicitó tu servicio {service.title}",
+                data={
+                    "type": "NEW_BOOKING",
+                    "booking_id": str(booking.id),
+                    "service_id": str(service.id)
+                }
+            )
+        except Exception as e:
+            print(f"Error sending push notification: {e}")
+        
         from apps.bookings.serializers import BookingSerializer
         return Response(
             BookingSerializer(booking).data,
@@ -681,6 +697,8 @@ def create_booking_from_chat(request, conversation_id):
         )
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
