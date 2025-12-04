@@ -4,6 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import DeviceToken
 from .serializers import DeviceTokenSerializer
+import jwt
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationViewSet(viewsets.ViewSet):
@@ -25,20 +29,66 @@ class NotificationViewSet(viewsets.ViewSet):
         Body: {"token": "fcm_token_here", "device_type": "ANDROID"}
         Header: Authorization: Bearer <jwt_token> (requerido)
         """
-        # Verificar que el usuario esté autenticado
-        if not request.user or not request.user.is_authenticated:
+        # Extraer el JWT del header Authorization
+        auth_header = request.headers.get('Authorization', '')
+        
+        if not auth_header.startswith('Bearer '):
             return Response(
-                {'error': 'Autenticación requerida'}, 
+                {'error': 'Token de autenticación requerido'}, 
                 status=status.HTTP_401_UNAUTHORIZED
             )
         
-        serializer = DeviceTokenSerializer(data=request.data, context={'request': request})
+        token_jwt = auth_header.split(' ')[1]
         
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'message': 'Token registrado exitosamente'}, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            # Decodificar el JWT de Spring Boot (sin verificar la firma por ahora)
+            decoded = jwt.decode(token_jwt, options={"verify_signature": False})
+            user_id = decoded.get('userId')
+            
+            if not user_id:
+                return Response(
+                    {'error': 'Token inválido: userId no encontrado'}, 
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            logger.info(f"📱 Registrando token FCM para user_id={user_id}")
+            
+            # Obtener el token FCM del body
+            fcm_token = request.data.get('token')
+            device_type = request.data.get('device_type', 'ANDROID')
+            
+            if not fcm_token:
+                return Response(
+                    {'error': 'Token FCM requerido'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Crear o actualizar el token del dispositivo
+            device_token, created = DeviceToken.objects.update_or_create(
+                user_id=user_id,
+                token=fcm_token,
+                defaults={'device_type': device_type}
+            )
+            
+            action_msg = "creado" if created else "actualizado"
+            logger.info(f"✅ Token FCM {action_msg} para user_id={user_id}")
+            
+            return Response(
+                {'message': f'Token {action_msg} exitosamente'}, 
+                status=status.HTTP_201_CREATED
+            )
+            
+        except jwt.DecodeError:
+            return Response(
+                {'error': 'Token JWT inválido'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        except Exception as e:
+            logger.error(f"❌ Error al registrar token: {str(e)}")
+            return Response(
+                {'error': 'Error al registrar token'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['delete'], url_path='unregister-token')
     def unregister_token(self, request):
