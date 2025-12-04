@@ -1,13 +1,21 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import DeviceToken
 from .serializers import DeviceTokenSerializer
 
 
 class NotificationViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """
+        Permitir registro de token sin autenticación,
+        pero requerir autenticación para desregistro
+        """
+        if self.action == 'register_token':
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     @action(detail=False, methods=['post'], url_path='register-token')
     def register_token(self, request):
@@ -15,7 +23,15 @@ class NotificationViewSet(viewsets.ViewSet):
         Registrar token FCM del dispositivo
         POST /api/notifications/register-token/
         Body: {"token": "fcm_token_here", "device_type": "ANDROID"}
+        Header: Authorization: Bearer <jwt_token> (requerido)
         """
+        # Verificar que el usuario esté autenticado
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {'error': 'Autenticación requerida'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
         serializer = DeviceTokenSerializer(data=request.data, context={'request': request})
         
         if serializer.is_valid():
