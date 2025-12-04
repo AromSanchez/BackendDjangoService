@@ -1,13 +1,9 @@
 from django.db import models
-from django.conf import settings
 
 
 class DeviceToken(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.CASCADE, 
-        related_name='device_tokens'
-    )
+    # Almacena el user_id de Spring Boot (no es una FK a Django)
+    user_id = models.IntegerField(db_index=True)
     token = models.CharField(max_length=255, unique=True)
     device_type = models.CharField(max_length=50, default='ANDROID')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -16,8 +12,8 @@ class DeviceToken(models.Model):
     class Meta:
         db_table = 'device_tokens'
         indexes = [
-            models.Index(fields=['user']),
+            models.Index(fields=['user_id']),
         ]
     
     def __str__(self):
-        return f"{self.user.username} - {self.device_type}"
+        return f"User {self.user_id} - {self.device_type}"
