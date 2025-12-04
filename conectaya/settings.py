@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'apps.favorites',
     'apps.reports',
     'apps.chat',
+    'apps.notifications',  # 🔥 Firebase Push Notifications
 ]
 
 MIDDLEWARE = [
@@ -195,6 +196,11 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+# ============================================
+# FIREBASE CONFIGURATION
+# ============================================
+FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR, 'config', 'firebase-service-account.json')
 
 
 LANGUAGE_CODE = 'en-us'

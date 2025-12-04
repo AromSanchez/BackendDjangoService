@@ -69,3 +69,4 @@ vine==5.1.0
 wcwidth==0.2.14
 zope.interface==8.1
 gunicorn==21.2.0
+firebase-admin==6.3.0

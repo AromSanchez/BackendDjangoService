@@ -38,4 +38,5 @@ urlpatterns = [
     path('api/dashboard/reports/', include('apps.reports.urls')),
     path('api/dashboard/chat/', include('apps.chat.urls')),
     path('api/dashboard/users/', include('apps.users.urls')),
+    path('api/', include('apps.notifications.urls')),  # 🔥 Notifications
 ]

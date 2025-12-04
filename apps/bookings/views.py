@@ -18,6 +18,7 @@ from .serializers import (
     BookingSerializer, BookingListSerializer, BookingCreateSerializer,
     BookingStatusUpdateSerializer
 )
+from apps.notifications.services.firebase_service import send_push_notification
 
 
 def send_booking_message_to_websocket(conversation, message):
@@ -141,6 +142,18 @@ def bookings_list_create(request):
                 booking = serializer.save(
                     customer_id=user_id,
                     provider_id=service.provider_id
+                )
+                
+                # 🔥 Enviar notificación push al proveedor
+                send_push_notification(
+                    user_id=booking.provider_id,
+                    title="Nueva solicitud de servicio 🔔",
+                    message=f"{user.first_name} {user.last_name} solicitó tu servicio {service.name}",
+                    data={
+                        "type": "NEW_BOOKING",
+                        "booking_id": str(booking.id),
+                        "service_id": str(service.id)
+                    }
                 )
                 
                 return Response(
@@ -278,6 +291,21 @@ def booking_accept(request, booking_id):
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
+        # 🔥 Enviar notificación push al cliente
+        try:
+            provider = User.objects.get(id=user_id)
+            send_push_notification(
+                user_id=booking.customer_id,
+                title="Reserva confirmada ✅",
+                message=f"{provider.first_name} {provider.last_name} aceptó tu solicitud de {booking.service.name}",
+                data={
+                    "type": "BOOKING_ACCEPTED",
+                    "booking_id": str(booking.id)
+                }
+            )
+        except Exception as e:
+            print(f"Error sending push notification: {e}")
+        
         return Response(
             BookingSerializer(booking).data,
             status=status.HTTP_200_OK
@@ -342,6 +370,21 @@ def booking_reject(request, booking_id):
                 send_conversation_closed_notification(conversation)
         except Exception as e:
             print(f"Error sending chat message: {e}")
+        
+        # 🔥 Enviar notificación push al cliente
+        try:
+            provider = User.objects.get(id=user_id)
+            send_push_notification(
+                user_id=booking.customer_id,
+                title="Reserva rechazada ❌",
+                message=f"{provider.first_name} {provider.last_name} rechazó tu solicitud de {booking.service.name}",
+                data={
+                    "type": "BOOKING_REJECTED",
+                    "booking_id": str(booking.id)
+                }
+            )
+        except Exception as e:
+            print(f"Error sending push notification: {e}")
         
         return Response(
             BookingSerializer(booking).data,
@@ -470,6 +513,21 @@ def booking_complete(request, booking_id):
         except Exception as e:
             print(f"Error sending chat message: {e}")
         
+        # 🔥 Enviar notificación push al cliente
+        try:
+            provider = User.objects.get(id=user_id)
+            send_push_notification(
+                user_id=booking.customer_id,
+                title="Servicio completado 🎉",
+                message=f"{provider.first_name} {provider.last_name} marcó el servicio como completado",
+                data={
+                    "type": "BOOKING_COMPLETED",
+                    "booking_id": str(booking.id)
+                }
+            )
+        except Exception as e:
+            print(f"Error sending push notification: {e}")
+        
         # Incrementar ganancias del proveedor
         from apps.users.models import UserProfile
         try:
@@ -557,6 +615,21 @@ def booking_cancel(request, booking_id):
                 send_conversation_closed_notification(conversation)
         except Exception as e:
             print(f"Error sending chat message: {e}")
+        
+        # 🔥 Enviar notificación push al proveedor
+        try:
+            client = User.objects.get(id=user_id)
+            send_push_notification(
+                user_id=booking.provider_id,
+                title="Reserva cancelada ⚠️",
+                message=f"{client.first_name} {client.last_name} canceló la reserva de {booking.service.name}",
+                data={
+                    "type": "BOOKING_CANCELLED",
+                    "booking_id": str(booking.id)
+                }
+            )
+        except Exception as e:
+            print(f"Error sending push notification: {e}")
         
         return Response(
             BookingSerializer(booking).data,
