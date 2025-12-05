@@ -713,8 +713,13 @@ def create_booking_from_chat(request, conversation_id):
 @jwt_required_drf
 def create_or_get_conversation_by_service(request, service_id):
     """
-    Obtener o crear conversación para un servicio específico
+    Obtener o crear conversación para un servicio específico.
     La conversación se crea SIN booking. El booking se crea después cuando el cliente solicita.
+    
+    LÓGICA:
+    1. Buscar conversación ABIERTA existente → usar esa
+    2. Si solo hay conversaciones CERRADAS → crear una NUEVA
+    3. Si no hay ninguna → crear una nueva
     """
     try:
         user_id = request.jwt_user_id
@@ -728,17 +733,18 @@ def create_or_get_conversation_by_service(request, service_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Buscar conversación existente para este servicio entre cliente y proveedor
-        existing_conversation = Conversation.objects.filter(
+        # Buscar conversación ABIERTA existente para este servicio entre cliente y proveedor
+        open_conversation = Conversation.objects.filter(
             service_id=service_id,
+            is_closed=False,  # Solo conversaciones ABIERTAS
             participants__user_id=user_id
         ).filter(
             participants__user_id=service.provider_id
         ).first()
         
-        if existing_conversation:
-            # Ya existe una conversación
-            conversation = existing_conversation
+        if open_conversation:
+            # Ya existe una conversación ABIERTA, usarla
+            conversation = open_conversation
             
             # Reactivar conversación para AMBOS participantes si alguno la había eliminado
             participants = conversation.participants.filter(deleted_at__isnull=False)
@@ -746,9 +752,11 @@ def create_or_get_conversation_by_service(request, service_id):
                 participant.deleted_at = None
                 participant.save()
         else:
-            # Crear nueva conversación SIN booking
+            # No hay conversación ABIERTA, crear una NUEVA
+            # (aunque existan conversaciones cerradas, se crea una nueva)
             conversation = Conversation.objects.create(
-                service_id=service_id
+                service_id=service_id,
+                is_closed=False
             )
             
             # Crear participantes
