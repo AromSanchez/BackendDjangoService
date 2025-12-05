@@ -53,40 +53,51 @@ def send_push_notification(user_id: int, title: str, message: str, data: dict = 
             logger.warning(f"⚠️ No se encontraron tokens para user_id={user_id}")
             return False
         
+        print(f"📱 Encontrados {len(tokens)} tokens para user_id={user_id}")
+        
         # Construir el mensaje
         notification = messaging.Notification(
             title=title,
             body=message
         )
         
-        # Datos adicionales (opcional)
-        message_data = data or {}
+        # Datos adicionales (opcional) - convertir a strings
+        message_data = {k: str(v) for k, v in (data or {}).items()}
         
-        # Enviar a todos los dispositivos del usuario
-        messages = [
-            messaging.Message(
-                notification=notification,
-                data=message_data,
-                token=token
-            )
-            for token in tokens
-        ]
+        # Enviar a cada dispositivo individualmente
+        # Usamos send() individual en lugar de send_all() que está deprecado
+        success_count = 0
+        failure_count = 0
         
-        # Envío por lotes
-        response = messaging.send_all(messages)
+        for token in tokens:
+            try:
+                fcm_message = messaging.Message(
+                    notification=notification,
+                    data=message_data,
+                    token=token
+                )
+                
+                # Enviar mensaje individual
+                response = messaging.send(fcm_message)
+                print(f"✅ Notificación enviada exitosamente: {response}")
+                success_count += 1
+                
+            except messaging.UnregisteredError:
+                # Token inválido, eliminarlo
+                DeviceToken.objects.filter(token=token).delete()
+                print(f"🗑️ Token inválido eliminado: {token[:20]}...")
+                logger.warning(f"🗑️ Token inválido eliminado: {token[:20]}...")
+                failure_count += 1
+                
+            except Exception as e:
+                print(f"❌ Error enviando a token {token[:20]}...: {str(e)}")
+                logger.error(f"❌ Error enviando a token: {str(e)}")
+                failure_count += 1
         
-        print(f"✅ Notificaciones enviadas: {response.success_count}/{len(messages)} para user_id={user_id}")
-        logger.info(f"✅ Notificaciones enviadas: {response.success_count}/{len(messages)} para user_id={user_id}")
+        print(f"📊 Resultado: {success_count} enviadas, {failure_count} fallidas para user_id={user_id}")
+        logger.info(f"✅ Notificaciones enviadas: {success_count}/{len(tokens)} para user_id={user_id}")
         
-        # Eliminar tokens inválidos
-        if response.failure_count > 0:
-            for idx, resp in enumerate(response.responses):
-                if not resp.success:
-                    invalid_token = tokens[idx]
-                    DeviceToken.objects.filter(token=invalid_token).delete()
-                    logger.warning(f"🗑️ Token inválido eliminado: {invalid_token}")
-        
-        return response.success_count > 0
+        return success_count > 0
         
     except Exception as e:
         print(f"❌ Error al enviar notificación push: {str(e)}")
