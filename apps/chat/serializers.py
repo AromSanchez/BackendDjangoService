@@ -159,12 +159,13 @@ class ConversationListSerializer(serializers.ModelSerializer):
     other_user = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
+    service_price = serializers.SerializerMethodField()
     
     class Meta:
         model = Conversation
         fields = [
             'id', 'service_id', 'booking', 'booking_service_title', 'booking_status', 
-            'other_user', 'unread_count', 'last_message',
+            'other_user', 'unread_count', 'last_message', 'service_price',
             'last_message_at', 'is_closed', 'created_at'
         ]
     
@@ -216,6 +217,23 @@ class ConversationListSerializer(serializers.ModelSerializer):
                 'sender_id': last_msg.sender_id
             }
         return None
+    
+    def get_service_price(self, obj):
+        """Obtener precio del servicio"""
+        # Primero intentar desde booking
+        if obj.booking and obj.booking.service_price:
+            return float(obj.booking.service_price)
+        if obj.booking and obj.booking.service:
+            return float(obj.booking.service.price)
+        # Si no hay booking, buscar desde service_id
+        if obj.service_id:
+            from apps.services.models import Service
+            try:
+                service = Service.objects.get(id=obj.service_id)
+                return float(service.price)
+            except Service.DoesNotExist:
+                pass
+        return 0.0
 
 
 class ConversationCreateSerializer(serializers.ModelSerializer):
