@@ -148,7 +148,7 @@ def bookings_list_create(request):
                 send_push_notification(
                     user_id=booking.provider_id,
                     title="Nueva solicitud de servicio 🔔",
-                    message=f"{user.first_name} {user.last_name} solicitó tu servicio {service.name}",
+                    message=f"{user.full_name} solicitó tu servicio {service.title}",
                     data={
                         "type": "NEW_BOOKING",
                         "booking_id": str(booking.id),
@@ -297,7 +297,7 @@ def booking_accept(request, booking_id):
             send_push_notification(
                 user_id=booking.customer_id,
                 title="Reserva confirmada ✅",
-                message=f"{provider.first_name} {provider.last_name} aceptó tu solicitud de {booking.service.name}",
+                message=f"{provider.full_name} aceptó tu solicitud de {booking.service.title}",
                 data={
                     "type": "BOOKING_ACCEPTED",
                     "booking_id": str(booking.id)
@@ -377,7 +377,7 @@ def booking_reject(request, booking_id):
             send_push_notification(
                 user_id=booking.customer_id,
                 title="Reserva rechazada ❌",
-                message=f"{provider.first_name} {provider.last_name} rechazó tu solicitud de {booking.service.name}",
+                message=f"{provider.full_name} rechazó tu solicitud de {booking.service.title}",
                 data={
                     "type": "BOOKING_REJECTED",
                     "booking_id": str(booking.id)
@@ -519,7 +519,7 @@ def booking_complete(request, booking_id):
             send_push_notification(
                 user_id=booking.customer_id,
                 title="Servicio completado 🎉",
-                message=f"{provider.first_name} {provider.last_name} marcó el servicio como completado",
+                message=f"{provider.full_name} marcó el servicio como completado",
                 data={
                     "type": "BOOKING_COMPLETED",
                     "booking_id": str(booking.id)
@@ -622,7 +622,7 @@ def booking_cancel(request, booking_id):
             send_push_notification(
                 user_id=booking.provider_id,
                 title="Reserva cancelada ⚠️",
-                message=f"{client.first_name} {client.last_name} canceló la reserva de {booking.service.name}",
+                message=f"{client.full_name} canceló la reserva de {booking.service.title}",
                 data={
                     "type": "BOOKING_CANCELLED",
                     "booking_id": str(booking.id)

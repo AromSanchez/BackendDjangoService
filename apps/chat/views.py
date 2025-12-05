@@ -681,7 +681,7 @@ def create_booking_from_chat(request, conversation_id):
             result = send_push_notification(
                 user_id=booking.provider_id,
                 title="Nueva solicitud de servicio 🔔",
-                message=f"{user.first_name} {user.last_name} solicitó tu servicio {service.title}",
+                message=f"{user.full_name} solicitó tu servicio {service.title}",
                 data={
                     "type": "NEW_BOOKING",
                     "booking_id": str(booking.id),
