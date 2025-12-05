@@ -676,8 +676,9 @@ def create_booking_from_chat(request, conversation_id):
         
         # 🔥 Enviar notificación push al proveedor
         try:
+            print(f"🔔 DEBUG: Preparando push notification para provider_id={booking.provider_id}")
             from apps.notifications.services.firebase_service import send_push_notification
-            send_push_notification(
+            result = send_push_notification(
                 user_id=booking.provider_id,
                 title="Nueva solicitud de servicio 🔔",
                 message=f"{user.first_name} {user.last_name} solicitó tu servicio {service.title}",
@@ -687,8 +688,11 @@ def create_booking_from_chat(request, conversation_id):
                     "service_id": str(service.id)
                 }
             )
+            print(f"🔔 DEBUG: Push notification result={result}")
         except Exception as e:
-            print(f"Error sending push notification: {e}")
+            print(f"❌ Error sending push notification: {e}")
+            import traceback
+            traceback.print_exc()
         
         from apps.bookings.serializers import BookingSerializer
         return Response(

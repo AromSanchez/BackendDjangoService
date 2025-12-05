@@ -40,11 +40,16 @@ def send_push_notification(user_id: int, title: str, message: str, data: dict = 
     """
     from apps.notifications.models import DeviceToken
     
+    # Log de entrada para debug
+    print(f"📤 Intentando enviar push a user_id={user_id}: {title}")
+    logger.info(f"📤 Intentando enviar push a user_id={user_id}: {title}")
+    
     try:
         # Obtener todos los tokens del usuario
         tokens = list(DeviceToken.objects.filter(user_id=user_id).values_list('token', flat=True))
         
         if not tokens:
+            print(f"⚠️ No se encontraron tokens FCM para user_id={user_id}")
             logger.warning(f"⚠️ No se encontraron tokens para user_id={user_id}")
             return False
         
@@ -70,6 +75,7 @@ def send_push_notification(user_id: int, title: str, message: str, data: dict = 
         # Envío por lotes
         response = messaging.send_all(messages)
         
+        print(f"✅ Notificaciones enviadas: {response.success_count}/{len(messages)} para user_id={user_id}")
         logger.info(f"✅ Notificaciones enviadas: {response.success_count}/{len(messages)} para user_id={user_id}")
         
         # Eliminar tokens inválidos
@@ -83,5 +89,6 @@ def send_push_notification(user_id: int, title: str, message: str, data: dict = 
         return response.success_count > 0
         
     except Exception as e:
+        print(f"❌ Error al enviar notificación push: {str(e)}")
         logger.error(f"❌ Error al enviar notificación: {str(e)}")
         return False
